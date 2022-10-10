@@ -8,7 +8,7 @@ Girolamo Vurro: @girolamovurro14
 
 Francesca Venturi:
 
-Tommaso Farnararo:
+Tommaso Farnararo: @tommasofarnararo
 
 
 # Project structure
