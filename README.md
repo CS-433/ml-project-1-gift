@@ -6,7 +6,7 @@ This project is executed by the team GiFT with the following members:
 
 Girolamo Vurro: @girolamovurro14
 
-Francesca Venturi:
+Francesca Venturi: @francescaventurigit
 
 Tommaso Farnararo: @tommasofarnararo
 
