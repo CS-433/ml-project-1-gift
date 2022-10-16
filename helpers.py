@@ -78,7 +78,7 @@ def standardize_test(x, mean_train, std_train):
 
 
 #%% Count -999 values for each feature
-def count_999_for_feature(dataset):
+def count_nan_for_feature(dataset):
     
     n_cols = dataset[0,:].size
     ind_col = np.arange(n_cols)
@@ -91,7 +91,7 @@ def count_999_for_feature(dataset):
 def delete_feature_with_177k(dataset):
     
     n_features = dataset[0,:].size -2
-    cnt = count_999_for_feature(dataset)
+    cnt = count_nan_for_feature(dataset)
     feat_to_keep = (cnt<177000)
     ret = dataset[:, feat_to_keep].copy()
     
@@ -122,7 +122,7 @@ def delete_999_rows(dataset):
     return ret
 
 #%% Substitute -999 values with val
-def subsitute_999_with_val(dataset, val):
+def subsitute_nan_with_val(dataset, val):
     
     ret = dataset.copy()
     ret[ret==-999] = val
@@ -130,7 +130,7 @@ def subsitute_999_with_val(dataset, val):
     return ret
 
 #%% Substitute -999 values with the mean of the corresponding column
-def subsitute_999_with_mean(dataset):
+def subsitute_nan_with_mean(dataset):
     
     ret = dataset.copy()
 
@@ -142,6 +142,20 @@ def subsitute_999_with_mean(dataset):
         ret[indexes_999,j] = np.mean(curr_col_wo999)
         
     return ret
+
+
+#%% generating a prediction from the weights and the design matrix
+def generate_prediction(tx, w):
+    
+    prediction = tx.dot(w)
+    
+    index_neg = (prediction < 0)
+    index_pos = (prediction >= 0)
+    
+    prediction[index_neg] = -1
+    prediction[index_pos] = 1
+
+    return prediction
 
 
 #%% generate the output predicion file
