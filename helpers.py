@@ -3,9 +3,12 @@ import matplotlib.pyplot as plt
 import doctest
 import io
 import sys
+import csv
+from itertools import zip_longest
 
 
 
+#%% load the train set
 def load_train_dataset():
     """Load data and convert it to the metric system."""
     path_dataset = "train.csv"
@@ -25,7 +28,8 @@ def load_train_dataset():
     
     return data
 
-#%%
+
+#%% load the test set
 def load_test_dataset():
     """Load data and convert it to the metric system."""
     path_dataset = "test.csv"
@@ -45,7 +49,16 @@ def load_test_dataset():
     
     return data
 
-#%%
+
+#%% split the whole dataset into y (output) and tx (design matrix)
+def split_into_y_tx(dataset):
+    
+    y = dataset[:,1].copy()
+    tx = dataset[:, 2:].copy()
+    
+    return y, tx
+
+#%% standardize the train set
 def standardize_train(x):
     """Standardize the original data set."""
     ret = x.copy()
@@ -53,7 +66,9 @@ def standardize_train(x):
     std = np.std(ret[:,2:])
     ret[:,2:] = (ret[:,2:] - mean)/std
     return ret, mean, std
-#%%
+
+
+#%% standardize the test set
 def standardize_test(x, mean_train, std_train):
     """Standardize the original data set."""
     ret = x.copy()
@@ -61,10 +76,33 @@ def standardize_test(x, mean_train, std_train):
     
     return ret
 
+
 #%% Count -999 values for each feature
 def count_999_for_feature(dataset):
     
-    ret = np.array([np.count_nonzero(dataset[:,i]==-999) for i in range(len(dataset[0,:]))])
+    n_cols = dataset[0,:].size
+    ind_col = np.arange(n_cols)
+    ret = np.array([np.count_nonzero(dataset[:,j]==-999) for j in ind_col])
+    
+    return ret
+
+
+#%% delete the features whose -999 values are more than 177000
+def delete_feature_with_177k(dataset):
+    
+    n_features = dataset[0,:].size -2
+    cnt = count_999_for_feature(dataset)
+    feat_to_keep = (cnt<177000)
+    ret = dataset[:, feat_to_keep].copy()
+    
+    return ret
+
+#%%
+def delete_deriv(dataset):
+    
+    feat_to_keep = np.array([0, 1, 15, 16, 17, 18, 19, 20, 21, 22,
+                             23, 24, 25, 26, 27, 28, 29, 30, 31])
+    ret = dataset[:, feat_to_keep].copy()
     
     return ret
 
@@ -79,7 +117,7 @@ def delete_999_rows(dataset):
         check = (dataset[i] == -999)
         selec_rows.append(np.sum(check)== 0)
         
-    ret = dataset[selec_rows]
+    ret = dataset[selec_rows].copy()
         
     return ret
 
@@ -104,6 +142,22 @@ def subsitute_999_with_mean(dataset):
         ret[indexes_999,j] = np.mean(curr_col_wo999)
         
     return ret
+
+
+#%% generate the output predicion file
+def generate_csv(prediction):
+    
+    Id = np.arange(350000,918238)
+    Prediction = prediction
+
+    data = [Id, Prediction]
+    export_data = zip_longest(*data, fillvalue = '')
+    with open('sample-submission.csv', 'w', encoding="ISO-8859-1", newline='') as file:
+        write = csv.writer(file)
+        write.writerow(("Id", "Prediction"))
+        write.writerows(export_data)
+        
+    return
 
 
 
