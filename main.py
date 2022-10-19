@@ -122,7 +122,76 @@ k_fold = 4
 #%%
 train4, test4 = feature_regression(train, test, degrees, k_fold, lambdas, seed)
 
+#%%
+train4_s, mean4, std4 = standardize_train(train4)
+test4_s = standardize_test(test4, mean4, std4)
+#%%
+cat_cols_train4 = create_dummy(col24_train)
+cat_cols_test4 = create_dummy(col24_test)
+#%%
+train4_stack = np.hstack((train4_s, cat_cols_train4))
+test4_stack = np.hstack((test4_s, cat_cols_test4))
+#%%
+ids_train4, y_train4, tx_train4 = split_into_ids_y_tx(train4_stack)
+ids_test4, y_test4, tx_test4 = split_into_ids_y_tx(test4_stack)
+#%%
+lambda4 = cross_validation_demo_tx(y_train4, tx_train4, k_fold, lambdas)[0]
+w4 = ridge_regression(y_train4, tx_train4, lambda4)[0]
+#%%
+prediction4 = generate_prediction(tx_test4, w4)
+print(prediction4)
+#%%
+generate_csv(prediction4, ids_test4, 'sample-submission4.csv')
 
+#############################################################################
+#%% polynomial regression to fill the dataset
+# with the columns that have 50%+ non-999 elements, 
+# except for the categoric column
+# (this DOES NOT iclude the 6 (or so) columns with too many -999 values)
+
+seed = 1
+lambdas = lambdas = np.logspace(-10, 0, 30)
+degrees = np.array([1, 2, 3, 4])
+k_fold = 4
+
+#%% delete the features with more than 50% of observations nan
+train5_del = delete_feature_with_50pec(train)
+test5_del = delete_feature_with_50pec(test)
+
+#%%
+train5, test5 = feature_regression(train5_del, test5_del, degrees, k_fold, lambdas, seed)
+
+#%%
+train5_s, mean5, std5 = standardize_train(train5)
+test5_s = standardize_test(test5, mean5, std5)
+
+cat_cols_train5 = create_dummy(col24_train)
+cat_cols_test5 = create_dummy(col24_test)
+
+train5_stack = np.hstack((train5_s, cat_cols_train5))
+test5_stack = np.hstack((test5_s, cat_cols_test5))
+
+ids_train5, y_train5, tx_train5 = split_into_ids_y_tx(train5_stack)
+ids_test5, y_test5, tx_test5 = split_into_ids_y_tx(test5_stack)
+
+lambda5 = cross_validation_demo_tx(y_train5, tx_train5, k_fold, lambdas)[0]
+w5 = ridge_regression(y_train5, tx_train5, lambda5)[0]
+
+prediction5 = generate_prediction(tx_test5, w5)
+print(prediction5)
+
+generate_csv(prediction5, ids_test5, 'sample-submission5.csv')
+
+
+
+#############################################################################
+#%% polynomial regression to fill the dataset (whole dataset) 
+# + THRESHOLD MODIFICATION
+
+prediction6 = generate_prediction(tx_test4, w4)
+print(prediction6)
+
+generate_csv(prediction6, ids_test6, 'sample-submission6.csv')
 
 
 

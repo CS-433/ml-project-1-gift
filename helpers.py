@@ -161,6 +161,36 @@ def delete_nan_elem(col_vector):
         
     return ret, selec_rows
 
+#%% Delete the rows with at least 1 -999 value among the columns
+def delete_outlier_rows(dataset):
+    
+    ret = dataset.copy()
+    
+    mean = np.mean(ret[:,2:], axis=0)
+    std = np.std(ret[:,2:], axis=0)
+    
+    ind_to_keep = []
+    
+    for i in np.arange(len(dataset[:,0])):
+        if(np.count_nonzero(dataset[i, 2:] - mean > 3*std) == 0):
+            ind_to_keep.append(i)
+    ind_to_keep = np.array(ind_to_keep)
+    ind_to_keep = ind_to_keep.astype(int)
+    
+    return ret[ind_to_keep]
+
+#%%
+def count_outliers_for_feature(dataset):
+    
+    ret = dataset.copy()
+    
+    mean = np.mean(ret[:,2:], axis=0)
+    std = np.std(ret[:,2:], axis=0)
+    
+    cnt_vec = np.array([np.count_nonzero(ret[:,i]-mean[i-2] > 3*std[i-2]) for i in np.arange(2,31)] )
+    
+    return cnt_vec
+
 #%% Substitute -999 values with val
 def subsitute_nan_with_val(dataset, val):
     
