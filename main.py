@@ -150,7 +150,7 @@ generate_csv(prediction4, ids_test4, 'sample-submission4.csv')
 # (this DOES NOT iclude the 6 (or so) columns with too many -999 values)
 
 seed = 1
-lambdas = lambdas = np.logspace(-10, 0, 30)
+lambdas = np.logspace(-10, 0, 30)
 degrees = np.array([1, 2, 3, 4])
 k_fold = 4
 

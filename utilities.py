@@ -4,60 +4,7 @@ import doctest
 import io
 import sys
 
-"""some helper functions.""" # HELPERS
-#%%
-def load_data():
-    """load data."""
-    data = np.loadtxt("dataEx3.csv", delimiter=",", skiprows=1, unpack=True)
-    x = data[0]
-    y = data[1]
-    return x, y
 
-def load_data_fromEx2(sub_sample=True, add_outlier=False):
-    """Load data and convert it to the metric system."""
-    path_dataset = "height_weight_genders.csv"
-    data = np.genfromtxt(
-        path_dataset, delimiter=",", skip_header=1, usecols=[1, 2])
-    height = data[:, 0]
-    weight = data[:, 1]
-    gender = np.genfromtxt(
-        path_dataset, delimiter=",", skip_header=1, usecols=[0],
-        converters={0: lambda x: 0 if b"Male" in x else 1})
-    # Convert to metric system
-    height *= 0.025
-    weight *= 0.454
-
-    # sub-sample
-    if sub_sample:
-        height = height[::50]
-        weight = weight[::50]
-
-    if add_outlier:
-        # outlier experiment
-        height = np.concatenate([height, [1.1, 1.2]])
-        weight = np.concatenate([weight, [51.5/0.454, 55.3/0.454]])
-
-    return height, weight, gender
-
-#%%
-def standardize(x):
-    """Standardize the original data set."""
-    mean_x = np.mean(x)
-    x = x - mean_x
-    std_x = np.std(x)
-    x = x / std_x
-    return x, mean_x, std_x
-
-#%%
-def build_model_data(height, weight):
-    """Form (y,tX) to get regression data in matrix form."""
-    y = weight
-    x = height
-    num_samples = len(y)
-    tx = np.c_[np.ones(num_samples), x]
-    return y, tx
-
-#%%
 def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
     """
     Generate a minibatch iterator for a dataset.
@@ -83,159 +30,16 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         if start_index != end_index:
             yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
 
+    return
 
-
-"""function for plot.""" # PLOTS
-#%%
-def prediction(w0, w1, mean_x, std_x):
-    """Get the regression line from the model."""
-    x = np.arange(1.2, 2, 0.01)
-    x_normalized = (x - mean_x) / std_x
-    return x, w0 + w1 * x_normalized
-
-#%%
-def base_visualization(grid_losses, w0_list, w1_list,
-                       mean_x, std_x, height, weight):
-    """Base Visualization for both models."""
-    w0, w1 = np.meshgrid(w0_list, w1_list)
-
-    fig = plt.figure()
-
-    # plot contourf
-    ax1 = fig.add_subplot(1, 2, 1)
-    cp = ax1.contourf(w0, w1, grid_losses.T, cmap=plt.cm.jet)
-    fig.colorbar(cp, ax=ax1)
-    ax1.set_xlabel(r'$w_0$')
-    ax1.set_ylabel(r'$w_1$')
-    # put a marker at the minimum
-    loss_star, w0_star, w1_star = get_best_parameters(
-        w0_list, w1_list, grid_losses)
-    ax1.plot(w0_star, w1_star, marker='*', color='r', markersize=20)
-
-    # plot f(x)
-    ax2 = fig.add_subplot(1, 2, 2)
-    ax2.scatter(height, weight, marker=".", color='b', s=5)
-    ax2.set_xlabel("x")
-    ax2.set_ylabel("y")
-    ax2.grid()
-
-    return fig
-
-#%%
-def grid_visualization(grid_losses, w0_list, w1_list,
-                       mean_x, std_x, height, weight):
-    """Visualize how the trained model looks like under the grid search."""
-    fig = base_visualization(
-        grid_losses, w0_list, w1_list, mean_x, std_x, height, weight)
-
-    loss_star, w0_star, w1_star = get_best_parameters(
-        w0_list, w1_list, grid_losses)
-    # plot prediciton
-    x, f = prediction(w0_star, w1_star, mean_x, std_x)
-    ax2 = fig.get_axes()[2]
-    ax2.plot(x, f, 'r')
-
-    return fig
-
-#%%
-def gradient_descent_visualization(
-        gradient_losses, gradient_ws,
-        grid_losses, grid_w0, grid_w1,
-        mean_x, std_x, height, weight, n_iter=None):
-    """Visualize how the loss value changes until n_iter."""
-    fig = base_visualization(
-        grid_losses, grid_w0, grid_w1, mean_x, std_x, height, weight)
-
-    ws_to_be_plotted = np.stack(gradient_ws)
-    if n_iter is not None:
-        ws_to_be_plotted = ws_to_be_plotted[:n_iter]
-
-    ax1, ax2 = fig.get_axes()[0], fig.get_axes()[2]
-    ax1.plot(
-        ws_to_be_plotted[:, 0], ws_to_be_plotted[:, 1],
-        marker='o', color='w', markersize=10)
-    pred_x, pred_y = prediction(
-        ws_to_be_plotted[-1, 0], ws_to_be_plotted[-1, 1],
-        mean_x, std_x)
-    ax2.plot(pred_x, pred_y, 'r')
-
-    return fig
-
-#%%
-def plot_fitted_curve(y, x, weights, degree, ax):
-    """plot the fitted curve."""
-    ax.scatter(x, y, color='b', s=12, facecolors='none', edgecolors='r')
-    xvals = np.arange(min(x) - 0.1, max(x) + 0.1, 0.1)
-    tx = build_poly(xvals, degree)
-    f = tx.dot(weights)
-    ax.plot(xvals, f)
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_title("Polynomial degree " + str(degree))
-
-#%%
-def plot_train_test(train_errors, test_errors, lambdas, degree):
-    """
-    train_errors, test_errors and lambas should be list (of the same size) the respective train error and test error for a given lambda,
-    * lambda[0] = 1
-    * train_errors[0] = RMSE of a ridge regression on the train set
-    * test_errors[0] = RMSE of the parameter found by ridge regression applied on the test set
-    
-    degree is just used for the title of the plot.
-    """
-    plt.semilogx(lambdas, train_errors, color='b', marker='*', label="Train error")
-    plt.semilogx(lambdas, test_errors, color='r', marker='*', label="Test error")
-    plt.xlabel("lambda")
-    plt.ylabel("RMSE")
-    plt.title("Ridge regression for polynomial degree " + str(degree))
-    leg = plt.legend(loc=1, shadow=True)
-    leg.draw_frame(False)
-    plt.savefig("ridge_regression")
-
-
-#%% 
-def test(f):
-    # The `globs` defines the variables, functions and packages allowed in the docstring.
-    tests = doctest.DocTestFinder().find(f)
-    assert len(tests) <= 1
-    for test in tests:
-        # We redirect stdout to a string, so we can tell if the tests worked out or not
-        orig_stdout = sys.stdout
-        sys.stdout = io.StringIO()
-
-        try:
-            results: doctest.TestResults = doctest.DocTestRunner().run(test)
-            output = sys.stdout.getvalue()
-        finally:
-            sys.stdout = orig_stdout
-
-        if results.failed > 0:
-            print(f"❌ The are some issues with your implementation of `{f.__name__}`:")
-            print(output, end="")
-            print(
-                "**********************************************************************"
-            )
-        elif results.attempted > 0:
-            print(f"✅ Your `{f.__name__}` passed {results.attempted} tests.")
-        else:
-            print(f"Could not find any tests for {f.__name__}")
-
-
-
-
-"""a function used to compute the loss.""" # COSTS
-#%%
 def compute_mse(y, tx, w):
     """Calculate the mse for vector e."""
     return 1 / 2 * np.mean((y-tx.dot(w)) ** 2)
 
-
-#%%
 def compute_mae(y, tx, w):
     """Calculate the mae for vector e."""
     return np.mean(np.abs(y-tx.dot(w)))
 
-#%%
 def compute_loss(y, tx, w):
     """Calculate the loss using either MSE or MAE.
 
@@ -250,38 +54,6 @@ def compute_loss(y, tx, w):
     
     return compute_mse(y, tx, w)
 
-
-
-
-"""Grid Search""" # GRID SEARCH
-#%%
-def generate_w(num_intervals):
-    """Generate a grid of values for w0 and w1."""
-    w0 = np.linspace(-100, 200, num_intervals)
-    w1 = np.linspace(-150, 150, num_intervals)
-    return w0, w1
-
-#%%
-def get_best_parameters(w0, w1, losses):
-    """Get the best w from the result of grid search."""
-    min_row, min_col = np.unravel_index(np.argmin(losses), losses.shape)
-    return losses[min_row, min_col], w0[min_row], w1[min_col]
-
-#%%
-def grid_search(y, tx, w0, w1):
-    """Algorithm for grid search."""
-    losses = np.zeros((len(w0), len(w1)))
-    # compute loss for each combination of w0 and w1.
-    for ind_row, row in enumerate(w0):
-        for ind_col, col in enumerate(w1):
-            w = np.array([row, col])
-            losses[ind_row, ind_col] = compute_loss(y, tx, w)
-    return losses
-
-
-
-"""Gradient Descent""" # GRADIENT DESCENT
-#%%
 def compute_gradient(y, tx, w):
     """Computes the gradient at w.
 
@@ -298,8 +70,6 @@ def compute_gradient(y, tx, w):
     grad = -tx.T.dot(err) / len(err)
     return grad, err
 
-"""Stochastic Gradient Descent""" # STOCHASTIC GRADIENT DESCENT
-#%%
 def compute_stoch_gradient(y, tx, w):
     """Compute a stochastic gradient at w from just few examples n and their corresponding y_n labels.
 
@@ -312,122 +82,10 @@ def compute_stoch_gradient(y, tx, w):
         An array of shape (2, ) (same shape as w), containing the stochastic gradient of the loss at w.
     """
 
-    ### SOLUTION
     err = y - tx.dot(w)
     grad = -tx.T.dot(err) / len(err)
     return grad, err
 
-
-#%%
-def compute_subgradient_mae(y, tx, w):
-    """Compute a subgradient of the MAE at w.
-
-    Args:
-        y: shape=(N, )
-        tx: shape=(N,2)
-        w: shape=(2, ). The vector of model parameters.
-
-    Returns:
-        An array of shape (2, ) (same shape as w), containing the subgradient of the MAE at w.
-    """
-
-    err = y - tx.dot(w)
-    grad = -np.dot(tx.T, np.sign(err)) / len(err)
-    return grad, err
-
-
-
-
-"""implement a polynomial basis function."""
-#%%
-def build_poly(x, degree):
-    """polynomial basis functions for input data x, for j=0 up to j=degree."""
-    # ***************************************************
-    phi_x = np.zeros((x.size, degree+1))
-    for i in range(len(x)):
-        curr_row = np.array([x[i]**deg for deg in range(degree+1)])
-        phi_x[i] = curr_row
-        
-    return phi_x
-    # ***************************************************
-    
-    
-  
-#%% 
-def split_data(x, y, ratio, seed=1):
-    """
-    split the dataset based on the split ratio. If ratio is 0.8 
-    you will have 80% of your data set dedicated to training 
-    and the rest dedicated to testing. If ratio times the number of samples is not round
-    you can use np.floor. Also check the documentation for np.random.permutation,
-    it could be useful.
-    
-    Args:
-        x: numpy array of shape (N,), N is the number of samples.
-        y: numpy array of shape (N,).
-        ratio: scalar in [0,1]
-        seed: integer.
-        
-    Returns:
-        x_tr: numpy array containing the train data.
-        x_te: numpy array containing the test data.
-        y_tr: numpy array containing the train labels.
-        y_te: numpy array containing the test labels.
-        
-    >>> split_data(np.arange(13), np.arange(13), 0.8, 1)
-    (array([ 2,  3,  4, 10,  1,  6,  0,  7, 12,  9]), array([ 8, 11,  5]), array([ 2,  3,  4, 10,  1,  6,  0,  7, 12,  9]), array([ 8, 11,  5]))
-    """
-    # set seed
-    np.random.seed(seed)
-    # ***************************************************
-    
-    N = y.size
-    n_tr = int(N*ratio)
-    n_te = N-n_tr
-    
-    index_permutation = np.random.permutation(N)
-    
-    tr_indexes = index_permutation[:n_tr]
-    te_indexes = index_permutation[n_tr:]
-    x_tr = x[tr_indexes]
-    x_te = x[te_indexes]
-    y_tr = y[tr_indexes]
-    y_te = y[te_indexes]
-    
-    return x_tr, x_te, y_tr, y_te
-    # ***************************************************
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#%%
 def gradient_descent(y, tx, initial_w, max_iters, gamma):
     """The Gradient Descent (GD) algorithm.
 
@@ -460,8 +118,6 @@ def gradient_descent(y, tx, initial_w, max_iters, gamma):
 
     return losses, ws
 
-
-#%%
 def stochastic_gradient_descent(y, tx, initial_w, batch_size, max_iters, gamma):
     """The Stochastic Gradient Descent algorithm (SGD).
 
@@ -500,9 +156,16 @@ def stochastic_gradient_descent(y, tx, initial_w, batch_size, max_iters, gamma):
             bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
     return losses, ws
 
+def build_poly(x, degree):
+    """polynomial basis functions for input data x, for j=0 up to j=degree."""
+    
+    phi_x = np.zeros((x.size, degree+1))
+    for i in range(len(x)):
+        curr_row = np.array([x[i]**deg for deg in range(degree+1)])
+        phi_x[i] = curr_row
+        
+    return phi_x
 
-
-#%%
 def least_squares(y, tx):
     """Calculate the least squares solution.
        returns mse, and optimal weights.
@@ -514,19 +177,13 @@ def least_squares(y, tx):
     Returns:
         w: optimal weights, numpy array of shape(D,), D is the number of features.
         mse: scalar.
-
-    >>> least_squares(np.array([0.1,0.2]), np.array([[2.3, 3.2], [1., 0.1]]))
-    (array([ 0.21212121, -0.12121212]), 8.666684749742561e-33)
     """
-    # ***************************************************
-    w_opt = np.linalg.solve(np.dot(tx.T,tx), np.dot(tx.T,y))
-    mse = compute_mse(y, tx, w_opt)
-    return w_opt, mse
-    # returns mse, and optimal weights
-    # ***************************************************
     
+    w = np.linalg.solve(np.dot(tx.T,tx), np.dot(tx.T,y))
+    mse = compute_mse(y, tx, w)
+    
+    return w, mse
 
-#%%    
 def ridge_regression(y, tx, lambda_):
     """implement ridge regression.
     
@@ -551,8 +208,6 @@ def ridge_regression(y, tx, lambda_):
     
     return w, loss
 
-
-#%%
 def build_k_indices(y, k_fold, seed):
     """build k indices for k-fold.
     
@@ -562,9 +217,7 @@ def build_k_indices(y, k_fold, seed):
         seed:   the random seed
     Returns:
         A 2D array of shape=(k_fold, N/k_fold) that indicates the data indices for each fold
-    >>> build_k_indices(np.array([1., 2., 3., 4.]), 2, 1)
-    array([[3, 2],
-           [0, 1]])
+    
     """
     num_row = y.shape[0]
     interval = int(num_row / k_fold) # Here it computes the number of intervals
@@ -573,8 +226,7 @@ def build_k_indices(y, k_fold, seed):
     k_indices = [indices[k * interval: (k + 1) * interval] for k in range(k_fold)]
     return np.array(k_indices)
 
-#%%
-def cross_validation_x(y, x, k_indices, k, lambda_, degree):
+def cross_validation_x_lin(y, x, k_indices, k, lambda_, degree):
     """return the loss of ridge regression for a fold corresponding to k_indices
     
     Args:
@@ -613,8 +265,44 @@ def cross_validation_x(y, x, k_indices, k, lambda_, degree):
     
     return loss_tr, loss_te
 
-#%%
-def cross_validation_demo(x, y, degree, k_fold, lambdas):
+def cross_validation_tx_lin(y, tx, k_indices, k, lambda_):
+    """return the loss of ridge regression for a fold corresponding to k_indices
+    
+    Args:
+        y:          shape=(N,)
+        x:          shape=(N,)
+        k_indices:  2D array returned by build_k_indices()
+        k:          scalar, the k-th fold (N.B.: not to confused with k_fold which is the fold nums)
+        lambda_:    scalar, cf. ridge_regression()
+        degree:     scalar, cf. build_poly()
+
+    Returns:
+        train and test root mean square errors rmse = sqrt(2 mse)
+    """
+
+    # get k'th subgroup in test, others in train: TODO
+    k_fold = len(k_indices)
+    
+    y_test = y[k_indices[k]]
+    tx_test = tx[k_indices[k],:]
+    
+    ind_train = []
+    ind_train = np.append(ind_train, k_indices[np.arange(k_fold)!=k])
+    ind_train = [int(ind_train[i]) for i in range(len(ind_train))]
+                 
+    y_train = y[ind_train]
+    tx_train = tx[ind_train,:]
+    
+    # ridge regression
+    w_k = ridge_regression(y_train, tx_train, lambda_)[0]
+    
+    # calculate the loss for train and test data
+    loss_tr = np.sqrt(2*compute_mse(y_train, tx_train, w_k))
+    loss_te = np.sqrt(2*compute_mse(y_test, tx_test, w_k))
+    
+    return loss_tr, loss_te
+
+def cross_validation_demo_x_lin(x, y, degree, k_fold, lambdas):
     """cross validation over regularisation parameter lambda.
     
     Args:
@@ -627,20 +315,19 @@ def cross_validation_demo(x, y, degree, k_fold, lambdas):
     """
     
     seed = 12
-    degree = degree
-    k_fold = k_fold
-    lambdas = lambdas
+    
     # split data in k fold
     k_indices = build_k_indices(y, k_fold, seed)
+    
     # define lists to store the loss of training data and test data
     rmse_tr = []
     rmse_te = []
-    # ***************************************************
+    
     for l in lambdas:
         loss_tr_sum = 0
         loss_te_sum = 0
         for k in range(k_fold):
-            loss_tr, loss_te = cross_validation_x(y, x, k_indices, k, l, degree)
+            loss_tr, loss_te = cross_validation_x_lin(y, x, k_indices, k, l, degree)
             loss_tr_sum += loss_tr
             loss_te_sum += loss_te
         rmse_tr = np.append(rmse_tr, loss_tr_sum/k_fold)
@@ -649,18 +336,48 @@ def cross_validation_demo(x, y, degree, k_fold, lambdas):
     best_ind = np.argmin(rmse_te)
     best_lambda = lambdas[best_ind]
     best_rmse = rmse_te[best_ind]
-            
-    # ***************************************************   
 
     #cross_validation_visualization(lambdas, rmse_tr, rmse_te)
-    print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best test rmse is %.5f with a test rmse of %.3f" % (degree, best_lambda, best_rmse))
+    # print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best test rmse is %.5f with a test rmse of %.3f" % (degree, best_lambda, best_rmse))
     
     return best_lambda, best_rmse
 
+def cross_validation_demo_tx_lin(y, tx, k_fold, lambdas):
+    """cross validation over regularisation parameter lambda.
+    
+    Args:
+        k_fold: integer, the number of folds
+        lambdas: shape = (p, ) where p is the number of values of lambda to test
+    Returns:
+        best_lambda : scalar, value of the best lambda
+        best_rmse : scalar, the associated root mean squared error for the best lambda
+    """
+    
+    seed = 1 # set the seed like the one of the best_degree_selection function; put 12 for the graph
+    
+    k_indices = build_k_indices(y, k_fold, seed)
+    # define lists to store the loss of training data and test data
+    rmse_tr = []
+    rmse_te = []
+    for l in lambdas:
+        r_tr = []
+        r_te = []
+    
+        for k in range(k_fold):  # we do this to perform the training using all the data
+            r_tr.append(cross_validation_tx_lin(y, tx, k_indices, k, l)[0])  
+            r_te.append(cross_validation_tx_lin(y, tx, k_indices, k, l)[1]) 
+        rmse_tr.append(np.mean(r_tr)) # mean of the rmse test for each of the considered lambda
+        rmse_te.append(np.mean(r_te))
+    
+    best_rmse = min(rmse_te)
+    minpos = rmse_te.index(best_rmse)  # Get the position of the minimum value of average loss 
+    best_lambda = lambdas[minpos]
+    #cross_validation_visualization(lambdas, rmse_tr, rmse_te)
+    #print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best test rmse is %.5f with a test rmse of %.3f" % (degree, best_lambda, best_rmse))
+    
+    return best_lambda, best_rmse
 
-
-#%%
-def best_degree_selection(x, y, degrees, k_fold, lambdas, seed = 1):
+def best_degree_selection_x_lin(x, y, degrees, k_fold, lambdas, seed = 1):
     """cross validation over regularisation parameter lambda and degree.
     
     Args:
@@ -675,36 +392,564 @@ def best_degree_selection(x, y, degrees, k_fold, lambdas, seed = 1):
     """
     
     p = lambdas.size
-    d = degrees.size
     
     # split data in k fold
     k_indices = build_k_indices(y, k_fold, seed)
     
-    # ***************************************************
     # define lists to store the loss of training data and test data
-    rmse_tr = []
-    rmse_te = []
-    # ***************************************************
+    best_lambdas = []
+    best_rmses = []
+    
     for deg in degrees:
-        for l in lambdas:
-            loss_tr_sum = 0
-            loss_te_sum = 0
-            for k in range(k_fold):
-                loss_tr, loss_te = cross_validation_x(y, x, k_indices, k, l, deg)
-                loss_tr_sum += loss_tr
-                loss_te_sum += loss_te
-            rmse_tr = np.append(rmse_tr, loss_tr_sum/k_fold)
-            rmse_te = np.append(rmse_te, loss_te_sum/k_fold)
+        
+        best_lambdas.append(cross_validation_demo_x_lin(x, y, deg, k_fold, lambdas)[0])
+        best_rmses.append(cross_validation_demo_x_lin(x, y, deg, k_fold, lambdas)[1])
     
-    best_ind = np.argmin(rmse_te)
-    best_ind_d = int(np.floor(best_ind/p))
-    best_ind_l = int(best_ind%p)
+    best_ind = np.argmin(best_rmses)
+    best_degree = degrees[best_ind]
+    best_lambda = best_lambdas[best_ind]
+    best_rmse = best_rmses[best_ind]
     
-    best_degree = degrees[best_ind_d]
-    best_lambda = lambdas[best_ind_l]
-    best_rmse = rmse_te[best_ind]
-    # ***************************************************
     
     return best_degree, best_lambda, best_rmse
 
+
+
+
+
+
+def sigmoid(t):
+    """apply sigmoid function on t.
+
+    Args:
+        t: scalar or numpy array
+
+    Returns:
+        scalar or numpy array
+
+    >>> sigmoid(np.array([0.1]))
+    array([0.52497919])
+    >>> sigmoid(np.array([0.1, 0.1]))
+    array([0.52497919, 0.52497919])
+    """
+    return (1 + np.exp(-t))**(-1)
+
+def calculate_loss(y, tx, w):
+    """compute the cost by negative log likelihood.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1) 
+
+    Returns:
+        a non-negative loss
+
+    >>> y = np.c_[[0., 1.]]
+    >>> tx = np.arange(4).reshape(2, 2)
+    >>> w = np.c_[[2., 3.]]
+    >>> round(calculate_loss(y, tx, w), 8)
+    1.52429481
+    """
+    assert y.shape[0] == tx.shape[0]
+    assert tx.shape[1] == w.shape[0]
+
+    # ***************************************************
+    txw = tx.dot(w)
+    log_loss = np.mean(np.log(1 + np.exp(txw)) - y*(txw))
+    
+    return log_loss
+
+def calculate_gradient(y, tx, w):
+    """compute the gradient of loss.
+    
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1) 
+
+    Returns:
+        a vector of shape (D, 1)
+
+    >>> np.set_printoptions(8)
+    >>> y = np.c_[[0., 1.]]
+    >>> tx = np.arange(6).reshape(2, 3)
+    >>> w = np.array([[0.1], [0.2], [0.3]])
+    >>> calculate_gradient(y, tx, w)
+    array([[-0.10370763],
+           [ 0.2067104 ],
+           [ 0.51712843]])
+    """
+    N = y.size
+    grad = (1/N) * np.dot(tx.T, sigmoid(tx.dot(w))-y)
+
+    return grad
+
+def learning_by_gradient_descent(y, tx, w, gamma):
+    """
+    Do one step of gradient descent using logistic regression. Return the loss and the updated w.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1) 
+        gamma: float
+
+    Returns:
+        loss: scalar number
+        w: shape=(D, 1) 
+
+    >>> y = np.c_[[0., 1.]]
+    >>> tx = np.arange(6).reshape(2, 3)
+    >>> w = np.array([[0.1], [0.2], [0.3]])
+    >>> gamma = 0.1
+    >>> loss, w = learning_by_gradient_descent(y, tx, w, gamma)
+    >>> round(loss, 8)
+    0.62137268
+    >>> w
+    array([[0.11037076],
+           [0.17932896],
+           [0.24828716]])
+    """
+    
+    loss = calculate_loss(y, tx, w)
+    w = w - gamma*calculate_gradient(y, tx, w)
+    
+    return loss, w
+
+def logistic_regression_gradient_descent_demo(y, x):
+    # init parameters
+    max_iter = 10000
+    threshold = 1e-8
+    gamma = 0.5
+    losses = []
+
+    # build tx
+    tx = np.c_[np.ones((y.shape[0], 1)), x]
+    w = np.zeros((tx.shape[1], 1))
+
+    # start the logistic regression
+    for iter in range(max_iter):
+        # get loss and update w.
+        loss, w = learning_by_gradient_descent(y, tx, w, gamma)
+        # log info
+        if iter % 100 == 0:
+            print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+    # visualization
+    # visualization(y, x, mean_x, std_x, w, "classification_by_logistic_regression_gradient_descent", True)
+    # print("loss={l}".format(l=calculate_loss(y, tx, w)))
+    
+    return w
+
+def calculate_hessian(y, tx, w):
+    """return the Hessian of the loss function.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1) 
+
+    Returns:
+        a hessian matrix of shape=(D, D) 
+
+    >>> y = np.c_[[0., 1.]]
+    >>> tx = np.arange(6).reshape(2, 3)
+    >>> w = np.array([[0.1], [0.2], [0.3]])
+    >>> calculate_hessian(y, tx, w)
+    array([[0.28961235, 0.3861498 , 0.48268724],
+           [0.3861498 , 0.62182124, 0.85749269],
+           [0.48268724, 0.85749269, 1.23229813]])
+    """
+    
+    N = y.size
+    diagonal = np.ndarray.flatten(sigmoid(tx.dot(w))*(1-sigmoid(tx.dot(w))))
+    S = np.diag(diagonal)
+    hess = (1/N) * np.dot(np.dot(tx.T,S),tx)
+    
+    return hess
+
+def logistic_regression(y, tx, w):
+    """return the loss, gradient of the loss, and hessian of the loss.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1) 
+
+    Returns:
+        loss: scalar number
+        gradient: shape=(D, 1) 
+        hessian: shape=(D, D)
+
+    >>> y = np.c_[[0., 1.]]
+    >>> tx = np.arange(6).reshape(2, 3)
+    >>> w = np.array([[0.1], [0.2], [0.3]])
+    >>> loss, gradient, hessian = logistic_regression(y, tx, w)
+    >>> round(loss, 8)
+    0.62137268
+    >>> gradient, hessian
+    (array([[-0.10370763],
+           [ 0.2067104 ],
+           [ 0.51712843]]), array([[0.28961235, 0.3861498 , 0.48268724],
+           [0.3861498 , 0.62182124, 0.85749269],
+           [0.48268724, 0.85749269, 1.23229813]]))
+    """
+    # ***************************************************
+    loss = calculate_loss(y, tx, w)
+    grad = calculate_gradient(y, tx, w)
+    hess = calculate_hessian(y, tx, w)
+    
+    return loss, grad, hess
+
+def learning_by_newton_method(y, tx, w, gamma):
+    """
+    Do one step of Newton's method.
+    Return the loss and updated w.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1)
+        gamma: scalar
+
+    Returns:
+        loss: scalar number
+        w: shape=(D, 1)
+
+    >>> y = np.c_[[0., 0., 1., 1.]]
+    >>> np.random.seed(0)
+    >>> tx = np.random.rand(4, 3)
+    >>> w = np.array([[0.1], [0.5], [0.5]])
+    >>> gamma = 0.1
+    >>> loss, w = learning_by_newton_method(y, tx, w, gamma)
+    >>> round(loss, 8)
+    0.71692036
+    >>> w
+    array([[-1.31876014],
+           [ 1.0590277 ],
+           [ 0.80091466]])
+    """
+    # ***************************************************
+    loss, grad, hess = logistic_regression(y, tx, w)
+    # return loss, gradient and Hessian: TODO
+    
+    g = np.linalg.solve(hess,grad)
+    w = w -gamma*g
+    # update w: TODO
+    # ***************************************************
+    return loss, w
+
+def logistic_regression_newton_method_demo(y, x):
+    # init parameters
+    max_iter = 100
+    threshold = 1e-8
+    lambda_ = 0.1
+    gamma = 1.
+    losses = []
+
+    # build tx
+    tx = np.c_[np.ones((y.shape[0], 1)), x]
+    w = np.zeros((tx.shape[1], 1))
+
+    # start the logistic regression
+    for iter in range(max_iter):
+        # get loss and update w.
+        loss, w = learning_by_newton_method(y, tx, w, gamma)
+        # log info
+        if iter % 1 == 0:
+            print("Current iteration={i}, the loss={l}".format(i=iter, l=loss))
+
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+    # visualization
+    # visualization(y, x, mean_x, std_x, w, "classification_by_logistic_regression_newton_method", True)
+    # print("loss={l}".format(l=calculate_loss(y, tx, w)))
+    
+    return w
+
+def penalized_logistic_regression(y, tx, w, lambda_):
+    """return the loss and gradient.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1)
+        lambda_: scalar
+
+    Returns:
+        loss: scalar number
+        gradient: shape=(D, 1)
+
+    >>> y = np.c_[[0., 1.]]
+    >>> tx = np.arange(6).reshape(2, 3)
+    >>> w = np.array([[0.1], [0.2], [0.3]])
+    >>> lambda_ = 0.1
+    >>> loss, gradient = penalized_logistic_regression(y, tx, w, lambda_)
+    >>> round(loss, 8)
+    0.63537268
+    >>> gradient 
+    array([[-0.08370763],
+           [ 0.2467104 ],
+           [ 0.57712843]])
+    """
+    pen_log_loss = calculate_loss(y,tx,w) + lambda_*np.linalg.norm(w)**2
+    pen_grad = calculate_gradient(y,tx,w) + 2*lambda_*w
+    
+    return pen_log_loss, pen_grad
+
+def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
+    """
+    Do one step of gradient descent, using the penalized logistic regression.
+    Return the loss and updated w.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1)
+        gamma: scalar
+        lambda_: scalar
+
+    Returns:
+        loss: scalar number
+        w: shape=(D, 1)
+
+    >>> np.set_printoptions(8)
+    >>> y = np.c_[[0., 1.]]
+    >>> tx = np.arange(6).reshape(2, 3)
+    >>> w = np.array([[0.1], [0.2], [0.3]])
+    >>> lambda_ = 0.1
+    >>> gamma = 0.1
+    >>> loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
+    >>> round(loss, 8)
+    0.63537268
+    >>> w
+    array([[0.10837076],
+           [0.17532896],
+           [0.24228716]])
+    """
+    # ***************************************************
+    loss, grad = penalized_logistic_regression(y, tx, w, lambda_)
+    w = w - gamma*grad
+    
+    return loss, w
+
+def logistic_regression_penalized_gradient_descent_demo(y, tx, lambda_):
+    # init parameters
+    max_iter = 10000
+    gamma = 0.5
+    threshold = 1e-5
+    losses = []
+
+    # build tx
+    # tx = np.c_[np.ones((y.shape[0], 1)), x]
+    w = np.zeros((tx.shape[1], 1))
+
+    # start the logistic regression
+    for iter in range(max_iter):
+        # get loss and update w.
+        loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
+        # log info
+        if iter % 100 == 0:
+            print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+    # visualization
+    # visualization(y, x, mean_x, std_x, w, "classification_by_logistic_regression_penalized_gradient_descent", True)
+    # print("loss={l}".format(l=calculate_loss(y, tx, w)))
+    return w
+    
+def cross_validation_x_log(y, x, k_indices, k, lambda_, degree):
+    """return the loss of ridge regression for a fold corresponding to k_indices
+    
+    Args:
+        y:          shape=(N,)
+        x:          shape=(N,)
+        k_indices:  2D array returned by build_k_indices()
+        k:          scalar, the k-th fold (N.B.: not to confused with k_fold which is the fold nums)
+        lambda_:    scalar, cf. ridge_regression()
+        degree:     scalar, cf. build_poly()
+    Returns:
+        train and test root mean square errors rmse = sqrt(2 mse)
+    """
+    
+    # get k'th subgroup in test, others in train: TODO
+    k_fold = len(k_indices)
+    
+    y_test = y[k_indices[k]]
+    x_test = x[k_indices[k]]
+    tx_test = build_poly(x_test, degree)
+    
+    ind_train = []
+    ind_train = np.append(ind_train, k_indices[np.arange(k_fold)!=k])
+    ind_train = np.array(ind_train)
+    ind_train = ind_train.astype(int)
+                 
+    y_train = y[ind_train]
+    x_train = x[ind_train]
+    tx_train = build_poly(x_train, degree)
+    
+    # ridge regression
+    w_k = logistic_regression_penalized_gradient_descent_demo(y_train, tx_train, lambda_)
+    
+    # calculate the loss for train and test data
+    loss_tr = np.sqrt(2*calculate_loss(y_train, tx_train, w_k))
+    loss_te = np.sqrt(2*calculate_loss(y_test, tx_test, w_k))
+    
+    return loss_tr, loss_te
+
+def cross_validation_tx_log(y, tx, k_indices, k, lambda_):
+    """return the loss of ridge regression for a fold corresponding to k_indices
+    
+    Args:
+        y:          shape=(N,)
+        x:          shape=(N,)
+        k_indices:  2D array returned by build_k_indices()
+        k:          scalar, the k-th fold (N.B.: not to confused with k_fold which is the fold nums)
+        lambda_:    scalar, cf. ridge_regression()
+        degree:     scalar, cf. build_poly()
+
+    Returns:
+        train and test root mean square errors rmse = sqrt(2 mse)
+    """
+
+    # get k'th subgroup in test, others in train: TODO
+    k_fold = len(k_indices)
+    
+    y_test = y[k_indices[k]]
+    tx_test = tx[k_indices[k],:]
+    
+    ind_train = []
+    ind_train = np.append(ind_train, k_indices[np.arange(k_fold)!=k])
+    ind_train = [int(ind_train[i]) for i in range(len(ind_train))]
+                 
+    y_train = y[ind_train]
+    tx_train = tx[ind_train,:]
+    
+    # ridge regression
+    w_k = logistic_regression_penalized_gradient_descent_demo(y_train, tx_train, lambda_)
+    
+    # calculate the loss for train and test data
+    loss_tr = np.sqrt(2*calculate_loss(y_train, tx_train, w_k))
+    loss_te = np.sqrt(2*calculate_loss(y_test, tx_test, w_k))
+    
+    return loss_tr, loss_te
+
+def cross_validation_demo_x_log(x, y, degree, k_fold, lambdas):
+    """cross validation over regularisation parameter lambda.
+    
+    Args:
+        degree: integer, degree of the polynomial expansion
+        k_fold: integer, the number of folds
+        lambdas: shape = (p, ) where p is the number of values of lambda to test
+    Returns:
+        best_lambda : scalar, value of the best lambda
+        best_rmse : scalar, the associated root mean squared error for the best lambda
+    """
+    
+    seed = 12
+    
+    # split data in k fold
+    k_indices = build_k_indices(y, k_fold, seed)
+    
+    # define lists to store the loss of training data and test data
+    rmse_tr = []
+    rmse_te = []
+    
+    for l in lambdas:
+        loss_tr_sum = 0
+        loss_te_sum = 0
+        for k in range(k_fold):
+            loss_tr, loss_te = cross_validation_x_log(y, x, k_indices, k, l, degree)
+            loss_tr_sum += loss_tr
+            loss_te_sum += loss_te
+        rmse_tr = np.append(rmse_tr, loss_tr_sum/k_fold)
+        rmse_te = np.append(rmse_te, loss_te_sum/k_fold)
+    
+    best_ind = np.argmin(rmse_te)
+    best_lambda = lambdas[best_ind]
+    best_rmse = rmse_te[best_ind]
+
+    #cross_validation_visualization(lambdas, rmse_tr, rmse_te)
+    # print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best test rmse is %.5f with a test rmse of %.3f" % (degree, best_lambda, best_rmse))
+    
+    return best_lambda, best_rmse
+
+def cross_validation_demo_tx_log(y, tx, k_fold, lambdas):
+    """cross validation over regularisation parameter lambda.
+    
+    Args:
+        k_fold: integer, the number of folds
+        lambdas: shape = (p, ) where p is the number of values of lambda to test
+    Returns:
+        best_lambda : scalar, value of the best lambda
+        best_rmse : scalar, the associated root mean squared error for the best lambda
+    """
+    
+    seed = 1 # set the seed like the one of the best_degree_selection function; put 12 for the graph
+    
+    k_indices = build_k_indices(y, k_fold, seed)
+    # define lists to store the loss of training data and test data
+    rmse_tr = []
+    rmse_te = []
+    for l in lambdas:
+        r_tr = []
+        r_te = []
+    
+        for k in range(k_fold):  # we do this to perform the training using all the data
+            r_tr.append(cross_validation_tx_log(y, tx, k_indices, k, l)[0])  
+            r_te.append(cross_validation_tx_log(y, tx, k_indices, k, l)[1]) 
+        rmse_tr.append(np.mean(r_tr)) # mean of the rmse test for each of the considered lambda
+        rmse_te.append(np.mean(r_te))
+    
+    best_rmse = min(rmse_te)
+    minpos = rmse_te.index(best_rmse)  # Get the position of the minimum value of average loss 
+    best_lambda = lambdas[minpos]
+    #cross_validation_visualization(lambdas, rmse_tr, rmse_te)
+    #print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best test rmse is %.5f with a test rmse of %.3f" % (degree, best_lambda, best_rmse))
+    
+    return best_lambda, best_rmse
+
+def best_degree_selection_x_log(x, y, degrees, k_fold, lambdas, seed = 1):
+    """cross validation over regularisation parameter lambda and degree.
+    
+    Args:
+        degrees: shape = (d,), where d is the number of degrees to test 
+        k_fold: integer, the number of folds
+        lambdas: shape = (p, ) where p is the number of values of lambda to test
+    Returns:
+        best_degree : integer, value of the best degree
+        best_lambda : scalar, value of the best lambda
+        best_rmse : value of the rmse for the couple (best_degree, best_lambda)
+        
+    """
+    
+    p = lambdas.size
+    
+    # split data in k fold
+    k_indices = build_k_indices(y, k_fold, seed)
+    
+    # define lists to store the loss of training data and test data
+    best_lambdas = []
+    best_rmses = []
+    
+    for deg in degrees:
+        
+        best_lambdas.append(cross_validation_demo_x_log(x, y, deg, k_fold, lambdas)[0])
+        best_rmses.append(cross_validation_demo_x_log(x, y, deg, k_fold, lambdas)[1])
+    
+    best_ind = np.argmin(best_rmses)
+    best_degree = degrees[best_ind]
+    best_lambda = best_lambdas[best_ind]
+    best_rmse = best_rmses[best_ind]
+    
+    
+    return best_degree, best_lambda, best_rmse
 

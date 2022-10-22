@@ -8,8 +8,7 @@ from itertools import zip_longest
 from utilities import *
 from implementations import *
 
-"""Some helper functions for project 1."""
-#%% load the train set
+
 def load_train_dataset():
     """Load data and convert it to the metric system."""
     path_dataset = "train.csv"
@@ -31,8 +30,6 @@ def load_train_dataset():
     
     return data, col24
     
-
-#%% load the test set
 def load_test_dataset():
     """Load data and convert it to the metric system."""
     path_dataset = "test.csv"
@@ -54,7 +51,6 @@ def load_test_dataset():
     
     return data, col24
 
-#%%
 def create_dummy(col24):
     cols = np.zeros((col24.size, 4))
     for i in range(len(col24)):
@@ -62,7 +58,6 @@ def create_dummy(col24):
         
     return cols
 
-#%% split the whole dataset into y (output) and tx (design matrix)
 def split_into_ids_y_tx(dataset):
     
     ids = dataset[:, 0].copy()
@@ -71,7 +66,6 @@ def split_into_ids_y_tx(dataset):
     
     return ids, y, tx
 
-#%% standardize the train set
 def standardize_train(x):
     """Standardize the original data set."""
     ret = x.copy()
@@ -80,8 +74,6 @@ def standardize_train(x):
     ret[:,2:] = (ret[:,2:] - mean)/std
     return ret, mean, std
 
-
-#%% standardize the test set
 def standardize_test(x, mean_train, std_train):
     """Standardize the original data set."""
     ret = x.copy()
@@ -89,8 +81,6 @@ def standardize_test(x, mean_train, std_train):
     
     return ret
 
-
-#%% Count -999 values for each feature
 def count_nan_for_feature(dataset):
     
     n_cols = dataset[0,:].size
@@ -99,15 +89,12 @@ def count_nan_for_feature(dataset):
     
     return ret
 
-#%%
 def count_nan_for_elem(col_vector):
     
     ret = np.count_nonzero(col_vector==-999)
     
     return ret
 
-
-#%% delete the features whose -999 values are more than 177000
 def delete_feature_with_50pec(dataset):
     
     n = dataset[:, 0].size
@@ -117,7 +104,6 @@ def delete_feature_with_50pec(dataset):
     
     return ret
 
-#%%
 def delete_deriv(dataset):
     
     feat_to_keep = np.array([0, 1, 15, 16, 17, 18, 19, 20, 21, 22,
@@ -126,7 +112,6 @@ def delete_deriv(dataset):
     
     return ret
 
-#%% Delete the rows with at least 1 -999 value among the columns
 def delete_nan_rows(dataset):
     
     check = []
@@ -144,7 +129,6 @@ def delete_nan_rows(dataset):
         
     return ret, selec_rows
 
-#%%
 def delete_nan_elem(col_vector):
     
     check = []
@@ -161,7 +145,6 @@ def delete_nan_elem(col_vector):
         
     return ret, selec_rows
 
-#%% Delete the rows with at least 1 -999 value among the columns
 def delete_outlier_rows(dataset):
     
     ret = dataset.copy()
@@ -179,7 +162,6 @@ def delete_outlier_rows(dataset):
     
     return ret[ind_to_keep]
 
-#%%
 def count_outliers_for_feature(dataset):
     
     ret = dataset.copy()
@@ -191,7 +173,6 @@ def count_outliers_for_feature(dataset):
     
     return cnt_vec
 
-#%% Substitute -999 values with val
 def subsitute_nan_with_val(dataset, val):
     
     ret = dataset.copy()
@@ -199,7 +180,6 @@ def subsitute_nan_with_val(dataset, val):
         
     return ret
 
-#%% Substitute -999 values with the mean of the corresponding column
 def subsitute_nan_with_mean(dataset):
     
     ret = dataset.copy()
@@ -212,8 +192,6 @@ def subsitute_nan_with_mean(dataset):
         ret[indexes_999,j] = float(np.mean(curr_col_wo999))
         
     return ret
-
-#%%
 
 def subsitute_nan_with_median(dataset):
     
@@ -228,9 +206,6 @@ def subsitute_nan_with_median(dataset):
         
     return ret
 
-
-
-#%% generating a prediction from the weights and the design matrix
 def generate_prediction(tx, w):
     
     prediction = tx.dot(w)
@@ -243,8 +218,6 @@ def generate_prediction(tx, w):
 
     return prediction
 
-
-#%% generate the output predicion file
 def generate_csv(prediction, ids, name):
     
     Id = ids.astype(int)
@@ -258,8 +231,6 @@ def generate_csv(prediction, ids, name):
         write.writerow(("Id", "Prediction"))
         write.writerows(export_data)
 
-
-#%%
 def create_csv_submission(ids, y_pred, name):
     """
     Creates an output file in .csv format for submission to Kaggle or AIcrowd
@@ -274,8 +245,6 @@ def create_csv_submission(ids, y_pred, name):
         for r1, r2 in zip(ids, y_pred):
             writer.writerow({"Id": int(r1), "Prediction": int(r2)})
 
-
-#%%
 def feature_regression_cols(y, x, degrees, k_fold, lambdas, seed = 1):
     
     yy = y.copy()
@@ -313,7 +282,6 @@ def feature_regression_cols(y, x, degrees, k_fold, lambdas, seed = 1):
     
     return yy
 
-#%%
 def feature_regression(ttrain, ttest, degrees, k_fold, lambdas, seed = 1):
     
     train = ttrain.copy()
@@ -351,21 +319,46 @@ def feature_regression(ttrain, ttest, degrees, k_fold, lambdas, seed = 1):
     
     return train, test
 
-                    
+def poly_expansion_col_lin(x, y, degrees, k_fold, lambdas, seed = 1):
+    
+    best_deg = best_degree_selection_x_lin(x, y, degrees, k_fold, lambdas, seed)[0]
+    tx = build_poly(x, best_deg)
+    
+    return tx, best_deg
+
+def poly_expansion_lin_train(dataset, degrees, k_fold, lambdas, seed = 1):
+    
+    ret = []
+    ret = np.array(ret)
+    ids, y, tx = split_into_ids_y_tx(dataset)
+    degree_selected = np.zeros(tx[0,:].size)
+    
+    for i in np.arange(len(tx[0,:])):
+        if i == 0:
+            ret, degree_selected[i] = poly_expansion_col_lin(tx[:,i], y, degrees, k_fold, lambdas, seed)
+        else:
+            exp_cols, degree_selected[i] = poly_expansion_col_lin(tx[:,i], y, degrees, k_fold, lambdas, seed)
+            ret = np.append(ret, exp_cols, axis=1)
         
-            
-            
+    return ret, degree_selected
+
+def poly_expansion_col_log(x, y, degrees, k_fold, lambdas, seed = 1):
     
+    best_deg = best_degree_selection_x_log(x, y, degrees, k_fold, lambdas, seed)[0]
+    tx = build_poly(x, best_deg)
     
+    return tx, best_deg
+
+def poly_expansion_log(dataset, degrees, k_fold, lambdas, seed = 1):
     
+    ret = []
+    ret = np.array(ret)
+    ids, y, tx = split_into_ids_y_tx(dataset)
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    for i in np.arange(len(tx[0,:])):
+        
+        tx = poly_expansion_col_log(tx[:,i], y, degrees, k_fold, lambdas, seed)
+        ret = np.append(ret, tx)
+        
+    return ret
+
