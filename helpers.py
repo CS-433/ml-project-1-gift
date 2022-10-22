@@ -362,3 +362,111 @@ def poly_expansion_log(dataset, degrees, k_fold, lambdas, seed = 1):
         
     return ret
 
+def NaN_row_index(dataset, tollerance):
+    
+    check = []
+    for i in range(len(dataset[:,0])):
+        check.append( np.count_nonzero(dataset[i,:]==-999))
+
+    check  = np.array(check)   
+    ind_nan_r =  check > tollerance
+    
+    return ind_nan_r
+
+def balance_funciton(dataset):
+    num_ones = np.sum(dataset[:,1]==1)
+    num_minus_ones = np.sum(dataset[:,1]== -1)
+    Dim = num_ones + num_minus_ones
+    ret = dataset.copy()
+    
+    index_minus_one = dataset[:,1] == -1 
+    index_ones = dataset[:,1] == 1
+    tol = 0
+    found = False
+    if (num_minus_ones > num_ones) :
+        diff = num_minus_ones - num_ones
+        
+        while not found:
+            ind_nan_rows = NaN_row_index(ret, tol)
+            to_delete = ind_nan_rows * index_minus_one
+            n = np.count_nonzero(to_delete==True)
+            if n < diff:
+                found = True
+            else:
+                tol = tol + 1
+         
+        to_keep = np.array([not to_delete[i] for i in range(len(to_delete))])
+        ret = ret[to_keep,:]
+        
+        index_minus_one = index_minus_one[to_keep]
+        tol = tol  - 1
+        ind_nan = NaN_row_index(ret, tol)
+        
+        to_del = ind_nan * index_minus_one
+        
+        cumsum = np.cumsum(to_del)
+        ind = np.min(np.where(cumsum==diff-n))
+        
+        to_del[ind:] = False
+        to_k = np.array([not to_del[i] for i in range(len(to_del))])
+        ret = ret[to_k,:]
+        
+    else:
+         diff = num_ones - num_minus_ones
+            
+         while not found:
+                ind_nan_rows = NaN_row_index(ret, tol)
+                to_delete = ind_nan_rows * index_minus_one
+                n = np.count_nonzero(to_delete==True)
+                if n < diff:
+                    found = True
+                else:
+                    tol = tol + 1
+             
+         to_keep = np.array([not to_delete[i] for i in range(len(to_delete))])
+         ret = ret[to_keep,:]
+            
+         index_minus_one = index_minus_one[to_keep]
+         tol = tol  - 1
+         ind_nan = NaN_row_index(ret, tol)
+            
+         to_del = ind_nan * index_minus_one
+            
+         cumsum = np.cumsum(to_del)
+         ind = np.min(np.where(cumsum==diff-n))
+            
+         to_del[ind:] = False
+         to_k = np.array([not to_del[i] for i in range(len(to_del))])
+         ret = ret[to_k,:]
+         
+    return ret
+
+def split_jet(dataset, col24):
+    
+    #given a dataset, returns a list with the dataset splitted by jet number 
+    col_indexes = np.arange(dataset[0,:].size)
+    
+    row_indexes = np.arange(dataset[:,0].size)
+    ind0 = row_indexes[col24==0]
+    ind1 = row_indexes[col24==1]
+    ind2 = row_indexes[col24==2]
+    ind3 = row_indexes[col24==3]
+    
+    jet_0 = dataset[ind0,:]
+    jet_1 = dataset[ind1,:]
+    jet_2 = dataset[ind2,:]
+    jet_3 = dataset[ind3,:]
+    
+    mylist = []
+    mydata = [jet_0, jet_1, jet_2, jet_3]
+    myind = [ind0, ind1, ind2, ind3]
+    
+    for i in range(len(mydata)):
+        
+        col_index_to_keep = col_indexes[np.std(mydata[i],axis=0) != 0]
+        mydata[i] = mydata[i][:,col_index_to_keep]
+        internal_list = [mydata[i], myind[i], col_index_to_keep]
+     
+        mylist.append(internal_list)
+    
+    return mylist

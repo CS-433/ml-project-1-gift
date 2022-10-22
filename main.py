@@ -196,6 +196,19 @@ generate_csv(prediction6, ids_test6, 'sample-submission6.csv')
 
 
 
+#%%
+mylist, ind0, ind1, ind2, ind3 = split_jet(train, col24_train)
+dataset_train = mylist[0]
+#%%
+bal_train = balance_funciton(dataset)
+mylist_test, ind0, ind1, ind2, ind3 = split_jet(test, col24_test)
+dataset_test = mylist_test[0]
+#%%
+train_filled = subsitute_nan_with_median(dataset_train)
+test_filled = subsitute_nan_with_median(dataset_test)
+#%%
+train_fs, m, std = standardize_train(train_filled)
+test_fs = standardize_test(test_filled, m, std)
 
 
 
