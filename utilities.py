@@ -454,9 +454,9 @@ def calculate_loss(y, tx, w):
     assert y.shape[0] == tx.shape[0]
     assert tx.shape[1] == w.shape[0]
 
-    # ***************************************************
     txw = tx.dot(w)
-    log_loss = np.mean(np.log(1 + np.exp(txw)) - y*(txw))
+    ttxw = txw.reshape(-1)
+    log_loss = np.mean(np.log(1 + np.exp(ttxw)) - y*ttxw)
     
     return log_loss
 
@@ -481,10 +481,10 @@ def calculate_gradient(y, tx, w):
            [ 0.51712843]])
     """
     N = y.size
+    w = w.reshape(-1)
     grad = (1/N) * np.dot(tx.T, sigmoid(tx.dot(w))-y)
 
     return grad
-
 
 def learning_by_gradient_descent(y, tx, w, gamma):
     """
@@ -546,7 +546,6 @@ def logistic_regression_gradient_descent_demo(y, x):
     
     return w
 
-
 def calculate_hessian(y, tx, w):
     """return the Hessian of the loss function.
 
@@ -606,7 +605,6 @@ def logistic_regression(y, tx, w):
     hess = calculate_hessian(y, tx, w)
     
     return loss, grad, hess
-
 
 def learning_by_newton_method(y, tx, w, gamma):
     """
@@ -676,7 +674,6 @@ def logistic_regression_newton_method_demo(y, x):
     
     return w
 
-
 def penalized_logistic_regression(y, tx, w, lambda_):
     """return the loss and gradient.
 
@@ -703,10 +700,11 @@ def penalized_logistic_regression(y, tx, w, lambda_):
            [ 0.57712843]])
     """
     pen_log_loss = calculate_loss(y,tx,w) + lambda_*np.linalg.norm(w)**2
-    pen_grad = calculate_gradient(y,tx,w) + 2*lambda_*w
+    grad = calculate_gradient(y,tx,w)
+    pen = (2*lambda_*w).reshape(-1)
+    pen_grad = grad + pen
     
     return pen_log_loss, pen_grad
-
 
 def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
     """
@@ -740,11 +738,12 @@ def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
     """
     # ***************************************************
     loss, grad = penalized_logistic_regression(y, tx, w, lambda_)
+    w = w.reshape(-1)
     w = w - gamma*grad
     
     return loss, w
 
-def logistic_regression_penalized_gradient_descent_demo(y, tx, lambdas):
+def logistic_regression_penalized_gradient_descent_demo(y, tx, lambda_):
     # init parameters
     max_iter = 10000
     gamma = 0.5
@@ -755,33 +754,20 @@ def logistic_regression_penalized_gradient_descent_demo(y, tx, lambdas):
     # tx = np.c_[np.ones((y.shape[0], 1)), x]
     w = np.zeros((tx.shape[1], 1))
     
-
     # start the logistic regression
     for iter in range(max_iter):
         # get loss and update w.
-        ws = []
-        losses = []
-        ws = np.array(ws)
-        losses_internal = np.array(losses)
-        
-        for lambda_ in lambdas:
-            
-            loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
-            losses_internal = np.append(losses, loss)
-            ws = np.append(ws,w)
-            
-        ind = np.argmin(losses_internal)
-        l = lambdas[ind]
-        ww = ws[ind]
-        
+        loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
+        # log info
+        if iter % 100 == 0:
+            print("Current iteration={i}, loss={l}".format(i=iter, l=loss))    
         # converge criterion
         losses.append(loss)
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
     
-    return ww
+    return w
     
-
 def cross_validation_x_log(y, x, k_indices, k, lambda_, degree):
     """return the loss of ridge regression for a fold corresponding to k_indices
     
@@ -812,7 +798,7 @@ def cross_validation_x_log(y, x, k_indices, k, lambda_, degree):
     x_train = x[ind_train]
     tx_train = build_poly(x_train, degree)
     
-    # ridge regression
+    # penalized logistic regression with gradient descent
     w_k = logistic_regression_penalized_gradient_descent_demo(y_train, tx_train, lambda_)
     
     # calculate the loss for train and test data

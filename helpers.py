@@ -326,7 +326,7 @@ def poly_expansion_col_lin(x, y, degrees, k_fold, lambdas, seed = 1):
     
     return tx, best_deg
 
-def poly_expansion_lin_train(dataset, degrees, k_fold, lambdas, seed = 1):
+def poly_expansion_lin(dataset, degrees, k_fold, lambdas, seed = 1):
     
     ret = []
     ret = np.array(ret)
@@ -354,13 +354,16 @@ def poly_expansion_log(dataset, degrees, k_fold, lambdas, seed = 1):
     ret = []
     ret = np.array(ret)
     ids, y, tx = split_into_ids_y_tx(dataset)
+    degree_selected = np.zeros(tx[0,:].size)
     
     for i in np.arange(len(tx[0,:])):
+        if i == 0:
+            ret, degree_selected[i] = poly_expansion_col_log(tx[:,i], y, degrees, k_fold, lambdas, seed)
+        else:
+            exp_cols, degree_selected[i] = poly_expansion_col_log(tx[:,i], y, degrees, k_fold, lambdas, seed)
+            ret = np.append(ret, exp_cols, axis=1)
         
-        tx = poly_expansion_col_log(tx[:,i], y, degrees, k_fold, lambdas, seed)
-        ret = np.append(ret, tx)
-        
-    return ret
+    return ret, degree_selected
 
 def NaN_row_index(dataset, tollerance):
     
@@ -373,72 +376,50 @@ def NaN_row_index(dataset, tollerance):
     
     return ind_nan_r
 
-def balance_funciton(dataset):
+def balance(dataset):
     num_ones = np.sum(dataset[:,1]==1)
     num_minus_ones = np.sum(dataset[:,1]== -1)
     Dim = num_ones + num_minus_ones
     ret = dataset.copy()
     
-    index_minus_one = dataset[:,1] == -1 
+    index_minus_ones = dataset[:,1] == -1 
     index_ones = dataset[:,1] == 1
     tol = 0
     found = False
+    
     if (num_minus_ones > num_ones) :
         diff = num_minus_ones - num_ones
-        
-        while not found:
-            ind_nan_rows = NaN_row_index(ret, tol)
-            to_delete = ind_nan_rows * index_minus_one
-            n = np.count_nonzero(to_delete==True)
-            if n < diff:
-                found = True
-            else:
-                tol = tol + 1
-         
-        to_keep = np.array([not to_delete[i] for i in range(len(to_delete))])
-        ret = ret[to_keep,:]
-        
-        index_minus_one = index_minus_one[to_keep]
-        tol = tol  - 1
-        ind_nan = NaN_row_index(ret, tol)
-        
-        to_del = ind_nan * index_minus_one
-        
-        cumsum = np.cumsum(to_del)
-        ind = np.min(np.where(cumsum==diff-n))
-        
-        to_del[ind:] = False
-        to_k = np.array([not to_del[i] for i in range(len(to_del))])
-        ret = ret[to_k,:]
-        
+        index = index_minus_ones
     else:
-         diff = num_ones - num_minus_ones
-            
-         while not found:
-                ind_nan_rows = NaN_row_index(ret, tol)
-                to_delete = ind_nan_rows * index_minus_one
-                n = np.count_nonzero(to_delete==True)
-                if n < diff:
-                    found = True
-                else:
-                    tol = tol + 1
-             
-         to_keep = np.array([not to_delete[i] for i in range(len(to_delete))])
-         ret = ret[to_keep,:]
-            
-         index_minus_one = index_minus_one[to_keep]
-         tol = tol  - 1
-         ind_nan = NaN_row_index(ret, tol)
-            
-         to_del = ind_nan * index_minus_one
-            
-         cumsum = np.cumsum(to_del)
-         ind = np.min(np.where(cumsum==diff-n))
-            
-         to_del[ind:] = False
-         to_k = np.array([not to_del[i] for i in range(len(to_del))])
-         ret = ret[to_k,:]
+        diff = num_ones - num_minus_ones
+        index = index_ones
+        
+    while not found:
+        ind_nan_rows = NaN_row_index(ret, tol)
+        to_delete = ind_nan_rows * index
+        n = np.count_nonzero(to_delete==True)
+        
+        if n < diff:
+            found = True
+        else:
+            tol = tol + 1
          
+    to_keep = np.array([not to_delete[i] for i in range(len(to_delete))])
+    ret = ret[to_keep,:]
+        
+    index = index[to_keep]
+    tol = tol  - 1
+    ind_nan = NaN_row_index(ret, tol)
+        
+    to_del = ind_nan * index
+        
+    cumsum = np.cumsum(to_del)
+    ind = np.min(np.where(cumsum==diff-n))
+        
+    to_del[ind:] = False
+    to_k = np.array([not to_del[i] for i in range(len(to_del))])
+    ret = ret[to_k,:]
+
     return ret
 
 def split_jet(dataset, col24):

@@ -196,19 +196,50 @@ generate_csv(prediction6, ids_test6, 'sample-submission6.csv')
 
 
 
+#%% MEDIAN
+
+train_datasets = split_jet(train, col24_train)
+test_datasets = split_jet(test, col24_test)
 #%%
-mylist, ind0, ind1, ind2, ind3 = split_jet(train, col24_train)
-dataset_train = mylist[0]
-#%%
-bal_train = balance_funciton(dataset)
-mylist_test, ind0, ind1, ind2, ind3 = split_jet(test, col24_test)
-dataset_test = mylist_test[0]
-#%%
-train_filled = subsitute_nan_with_median(dataset_train)
-test_filled = subsitute_nan_with_median(dataset_test)
-#%%
-train_fs, m, std = standardize_train(train_filled)
-test_fs = standardize_test(test_filled, m, std)
+for i in range(len(test_datasets)):
+    n_rows = test_datasets[i][0][:,0].size
+    col = - np.ones(n_rows)
+    test_datasets[i][0] = np.insert(test_datasets[i][0], 1, col, axis=1)
+    
+#%% balancing of the train sets
+bal_train_datasets = []
+kept_col_bal_train = []
+for i in range(len(train_datasets)):
+    bal_train_datasets.append(balance(train_datasets[i][0]))
+    kept_col_bal_train.append(train_datasets[i][2])
+
+#%% filling nan rows with the median
+train_ds = []
+test_ds = []
+for i in range(len(bal_train_datasets)):
+    train_ds.append(subsitute_nan_with_median(bal_train_datasets[i]))
+    test_ds.append(subsitute_nan_with_median(test_datasets[i][0]))
+    
+#%% standardize train_ds and test_ds
+train_stand = []
+test_stand = []
+for i in range(len(train_ds)):
+    curr_train, curr_mean, curr_std = standardize_train(train_ds[i])
+    curr_test = standardize_test(test_ds[i], curr_mean, curr_std)
+    train_stand.append(curr_train)
+    test_stand.append(curr_test)
+    
+#%% polynomial expansion on train_stand
+train_tx = []
+degs = []
+degrees = np.array([1, 2, 3, 4, 5])
+lambdas = np.logspace(-10, 0, 30)
+k_fold = 4
+for i in range(len(train_stand)):
+    tx, deg_sel = poly_expansion_log(train_stand[i], degrees, k_fold, lambdas, seed = 1)
+    train_tx.append(tx)
+    degs.append(deg_sel)
+
 
 
 
