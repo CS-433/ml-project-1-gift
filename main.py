@@ -5,6 +5,7 @@ import helpers
 from helpers import *
 from implementations import * 
 # from utilities import *
+from tqdm import tqdm
 
 #%% Importing the train dataset and test dataset
 
@@ -235,13 +236,14 @@ degs = []
 degrees = np.array([1, 2, 3, 4, 5])
 lambdas = np.logspace(-10, 0, 30)
 k_fold = 4
+
 for i in range(len(train_stand)):
     tx, deg_sel = poly_expansion_log(train_stand[i], degrees, k_fold, lambdas, seed = 1)
     train_tx.append(tx)
     degs.append(deg_sel)
 
 
-
+#%%
 
 
 

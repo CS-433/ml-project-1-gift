@@ -534,8 +534,8 @@ def logistic_regression_gradient_descent_demo(y, x):
         # get loss and update w.
         loss, w = learning_by_gradient_descent(y, tx, w, gamma)
         # log info
-        if iter % 100 == 0:
-            print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
+        #if iter % 100 == 0:
+         #   print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
         # converge criterion
         losses.append(loss)
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
@@ -759,8 +759,8 @@ def logistic_regression_penalized_gradient_descent_demo(y, tx, lambda_):
         # get loss and update w.
         loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
         # log info
-        if iter % 100 == 0:
-            print("Current iteration={i}, loss={l}".format(i=iter, l=loss))    
+        #if iter % 100 == 0:
+        #    print("Current iteration={i}, loss={l}".format(i=iter, l=loss))    
         # converge criterion
         losses.append(loss)
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
@@ -802,8 +802,10 @@ def cross_validation_x_log(y, x, k_indices, k, lambda_, degree):
     w_k = logistic_regression_penalized_gradient_descent_demo(y_train, tx_train, lambda_)
     
     # calculate the loss for train and test data
-    loss_tr = np.sqrt(2*calculate_loss(y_train, tx_train, w_k))
-    loss_te = np.sqrt(2*calculate_loss(y_test, tx_test, w_k))
+    l_tr = np.exp(-calculate_loss(y_train, tx_train, w_k))
+    l_te = np.exp(-calculate_loss(y_test, tx_test, w_k))
+    loss_tr = np.sqrt(2*l_tr)
+    loss_te = np.sqrt(2*l_te)
     
     return loss_tr, loss_te
 
