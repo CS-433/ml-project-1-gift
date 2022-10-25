@@ -351,17 +351,17 @@ def poly_expansion_col_log(x, y, degrees, k_fold, lambdas, seed = 1):
 
 def poly_expansion_log(dataset, degrees, k_fold, lambdas, seed = 1):
     
-    ret = []
-    ret = np.array(ret)
+    ret = dataset[:,[0,1]].copy()
+    offset_col = np.ones((dataset[:,0].size,1))
+    ret = np.hstack((ret, offset_col))
+   
     ids, y, tx = split_into_ids_y_tx(dataset)
     degree_selected = np.zeros(tx[0,:].size)
     
     for i in np.arange(len(tx[0,:])):
-        if i == 0:
-            ret, degree_selected[i] = poly_expansion_col_log(tx[:,i], y, degrees, k_fold, lambdas, seed)
-        else:
-            exp_cols, degree_selected[i] = poly_expansion_col_log(tx[:,i], y, degrees, k_fold, lambdas, seed)
-            ret = np.append(ret, exp_cols, axis=1)
+       exp_cols, degree_selected[i] = poly_expansion_col_log(tx[:,i], y, degrees, k_fold, lambdas, seed)
+       exp_cols = exp_cols[:, 1:]
+       ret = np.append(ret, exp_cols, axis=1)
         
     return ret, degree_selected
 
