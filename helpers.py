@@ -452,10 +452,6 @@ def split_jet(dataset, col24):
 
     return mylist
 
-
-
-
-
 def poly_expansion_blind(dataset, deg):
     
     ret = dataset[:,[0,1]].copy()
@@ -472,6 +468,22 @@ def poly_expansion_blind(dataset, deg):
     
     return ret
 
+def poly_expansion_blind_degrees(dataset, degrees):
+    """ Polynomial expansion of design matrix tx of the dataset
+        Each feature gets expanded by the corresponding degree in degrees """
+    ret = dataset[:,[0,1]].copy()
+    offset_col = np.ones((dataset[:,0].size,1))
+    ret = np.hstack((ret, offset_col))
+        
+    for j in range(2, dataset[0,:].size):
+        
+        curr_expansion = build_poly(dataset[:,j], degrees[j-2])
+        # remove the offset column
+        curr_expansion = curr_expansion[:,1:]
+        
+        ret = np.hstack((ret, curr_expansion))
+    
+    return ret
 
 
 
@@ -527,3 +539,35 @@ def nan_regression (train, test, degrees, k_fold, lambdas, seed = 1):
     ttest = dataset[n_rows_train:,:]        
     
     return ttrain, ttest
+
+
+def feature_regression_col3(ttrain, ttest, k_fold, lambdas, seed = 1):
+    
+    col_train = ttrain[:,:2].copy()
+    train = ttrain[:,2:].copy()
+    n_rows_train = train.shape[0]
+    
+    col_test = ttest[:,0].copy()
+    test = ttest[:,1:].copy()
+    n_rows_test = ttest.shape[0]
+    
+    dataset = np.vstack((train, test))
+        
+    index_test = dataset[:,0]==-999  #rows with nan
+    index_train = dataset[:,0]!=-999  #rows without nan
+    train_reg = dataset[index_train,:]
+    test_reg = dataset[index_test,:]
+    y = train_reg[:,0]
+    tx = train_reg[:,1:]
+    
+    lambda_= cross_validation_demo_tx_lin(y, tx, k_fold, lambdas)[0]
+    print(lambda_)
+    w = ridge_regression(y, tx, lambda_)[0]
+    yy = test_reg[:,1:].dot(w)
+    
+    dataset[index_test, 0] = yy
+    
+    train = np.c_[col_train, dataset[:n_rows_train,:]]
+    test = np.c_[col_test, dataset[n_rows_train:,:]]
+
+    return train, test
