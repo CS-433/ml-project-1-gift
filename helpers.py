@@ -328,17 +328,17 @@ def poly_expansion_col_lin(x, y, degrees, k_fold, lambdas, seed = 1):
 
 def poly_expansion_lin(dataset, degrees, k_fold, lambdas, seed = 1):
     
-    ret = []
-    ret = np.array(ret)
+    ret = dataset[:,[0,1]].copy()
+    offset_col = np.ones((dataset[:,0].size,1))
+    ret = np.hstack((ret, offset_col))
+    
     ids, y, tx = split_into_ids_y_tx(dataset)
     degree_selected = np.zeros(tx[0,:].size)
     
     for i in np.arange(len(tx[0,:])):
-        if i == 0:
-            ret, degree_selected[i] = poly_expansion_col_lin(tx[:,i], y, degrees, k_fold, lambdas, seed)
-        else:
-            exp_cols, degree_selected[i] = poly_expansion_col_lin(tx[:,i], y, degrees, k_fold, lambdas, seed)
-            ret = np.append(ret, exp_cols, axis=1)
+       exp_cols, degree_selected[i] = poly_expansion_col_lin(tx[:,i], y, degrees, k_fold, lambdas, seed)
+       exp_cols = exp_cols[:, 1:]
+       ret = np.append(ret, exp_cols, axis=1)
         
     return ret, degree_selected
 
@@ -378,11 +378,11 @@ def NaN_row_index(dataset, tollerance):
 
 def balance(dataset):
     num_ones = np.sum(dataset[:,1]==1)
-    num_minus_ones = np.sum(dataset[:,1]== -1)
+    num_minus_ones = np.sum(dataset[:,1]== 0)
     Dim = num_ones + num_minus_ones
     ret = dataset.copy()
     
-    index_minus_ones = dataset[:,1] == -1 
+    index_minus_ones = dataset[:,1] == 0 
     index_ones = dataset[:,1] == 1
     tol = 0
     found = False
@@ -431,16 +431,16 @@ def split_jet(dataset, col24):
     ind0 = row_indexes[col24==0]
     ind1 = row_indexes[col24==1]
     ind2 = row_indexes[col24==2]
-    ind3 = row_indexes[col24==3]
+    ind23 = row_indexes[(col24==3) | (col24==2)]
     
     jet_0 = dataset[ind0,:]
     jet_1 = dataset[ind1,:]
-    jet_2 = dataset[ind2,:]
-    jet_3 = dataset[ind3,:]
+    jet_23 = dataset[ind23,:]
+    
     
     mylist = []
-    mydata = [jet_0, jet_1, jet_2, jet_3]
-    myind = [ind0, ind1, ind2, ind3]
+    mydata = [jet_0, jet_1, jet_23]
+    myind = [ind0, ind1, ind23]
     
     for i in range(len(mydata)):
         
@@ -449,5 +449,81 @@ def split_jet(dataset, col24):
         internal_list = [mydata[i], myind[i], col_index_to_keep]
      
         mylist.append(internal_list)
-    
+
     return mylist
+
+
+
+
+
+def poly_expansion_blind(dataset, deg):
+    
+    ret = dataset[:,[0,1]].copy()
+    offset_col = np.ones((dataset[:,0].size,1))
+    ret = np.hstack((ret, offset_col))
+        
+    for j in range(2, dataset[0,:].size):
+        
+        curr_expansion = build_poly(dataset[:,j], deg)
+        # remove the offset column
+        curr_expansion = curr_expansion[:,1:]
+        
+        ret = np.hstack((ret, curr_expansion))
+    
+    return ret
+
+
+
+
+
+##############################################################################
+def nan_regression (train, test, degrees, k_fold, lambdas, seed = 1):
+    
+    n_rows_train = train.shape[0]
+    n_rows_test = test.shape[0]
+    
+    dataset = np.vstack((train, test))
+    dataset = np.delete(dataset, 1, axis=0)
+    
+    cnt = count_nan_for_feature(dataset)
+    
+    ind = np.arange(cnt.size).astype(int)
+    ind_output = 2
+        
+    y = dataset[:, ind_output].copy()
+    tx = dataset[:, ind_output:].copy()
+    # ds_expand = poly_expansion_blind(ds, 3)
+        
+        
+    inds = np.arange(y.size)
+    y_train, ind_train = delete_nan_elem(y)
+    tx_train = tx[ind_train]
+        
+    ind_train = np.array(ind_train)
+    ind_train = ind_train.astype(int)
+        
+    ind_test = []
+    for i in inds:
+        if np.count_nonzero(ind_train == i) == 0:
+           ind_test.append(i)
+    ind_test = np.array(ind_test)
+    ind_test = ind_test.astype(int)
+
+    y_test = y[ind_test] # -999 values
+    tx_test = tx[ind_test]
+        
+    best_lambda = cross_validation_demo_tx_lin(y_train, tx_train, k_fold, lambdas)[0]
+    w = ridge_regression(y_train, tx_train, best_lambda)[0]
+
+    tx_test = tx[ind_test]
+    y_test = tx_test.dot(w)
+            
+    y[ind_train] = y_train
+    y[ind_test] = y_test
+        
+    dataset[:, ind_output] = y
+        
+    ttrain = dataset[:n_rows_train, :]
+    ttest = dataset[n_rows_train:,:]        
+    
+    return ttrain, ttest

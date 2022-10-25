@@ -514,7 +514,9 @@ def learning_by_gradient_descent(y, tx, w, gamma):
     """
     
     loss = calculate_loss(y, tx, w)
+    w = w.reshape(-1)
     w = w - gamma*calculate_gradient(y, tx, w)
+    
     
     return loss, w
 
@@ -841,8 +843,8 @@ def cross_validation_tx_log(y, tx, k_indices, k, lambda_):
     w_k = logistic_regression_penalized_gradient_descent_demo(y_train, tx_train, lambda_)
     
     # calculate the loss for train and test data
-    loss_tr = np.sqrt(2*calculate_loss(y_train, tx_train, w_k))
-    loss_te = np.sqrt(2*calculate_loss(y_test, tx_test, w_k))
+    loss_tr = np.sqrt(2*np.exp(-calculate_loss(y_train, tx_train, w_k)))
+    loss_te = np.sqrt(2*np.exp(-calculate_loss(y_test, tx_test, w_k)))
     
     return loss_tr, loss_te
 
@@ -881,7 +883,7 @@ def cross_validation_demo_x_log(x, y, degree, k_fold, lambdas):
     best_lambda = lambdas[best_ind]
     best_rmse = rmse_te[best_ind]
 
-    #cross_validation_visualization(lambdas, rmse_tr, rmse_te)
+    # cross_validation_visualization(lambdas, rmse_tr, rmse_te)
     # print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best test rmse is %.5f with a test rmse of %.3f" % (degree, best_lambda, best_rmse))
     
     return best_lambda, best_rmse
