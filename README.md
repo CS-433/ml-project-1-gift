@@ -3,7 +3,7 @@ The repository is organized as follows:
  - useful documentation and references consulted during the project (DOCUMENTATION folder)
  - (down-) loading of the dataset and (up-) loading of the results (loading_dataset.py)
  - preliminary inspection of the dataset (INSPECTION folder) QUI DENTRO METTIAMO ANCHE I PLOT
- - cleaning of the dataset ([cleaning_dataset.py])
+ - cleaning of the dataset (cleaning_dataset.py)
  - manipulation techniques on the features of the dataset (feature_engineering.py)
  - regression (REGRESSION FOLDER utilities_linear_regression.py, utilities_logistic_regression.py and implementation.py)
  - 'main' code, including all the trials that led us to the final results (MAIN folder, finalrun.py)
