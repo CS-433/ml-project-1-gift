@@ -2,21 +2,24 @@ import sys
 sys.path.append("../../ML_project1")
 
 from loading_data import *
-from preprocessing import *
+#from preprocessing import *
 from cleaning_dataset import *
 from feature_engineering import *
 from utilities_linear_regression import *
 from utilities_logistic_regression import *
-from postprocessing import *
+#from postprocessing import *
+import matplotlib.pyplot as plt
 
 ##############################################################################
 
-#%% Importing the train dataset and test dataset
+#%% LOADING DATASET
+### Importing the train dataset and test dataset
 train_original, col24_train = load_train_dataset()
 test_original, col24_test = load_test_dataset()
 
-#%% Splitting the dataset into 3 sub-datasets according to the categoric
-# feature and deleting the constant features
+#%% CATEGORICAL SPLITTING
+### Splitting the dataset into 3 sub-datasets according to the categoric
+### feature and deleting the constant features
 train_datasets = split_jet(train_original, col24_train)
 test_datasets = split_jet(test_original, col24_test)
 # add the zero-columns for the prediction of the test set
@@ -24,10 +27,12 @@ for i in range(len(test_datasets)):
     n_rows = test_datasets[i][0][:,0].size
     col = np.zeros(n_rows)
     test_datasets[i][0] = np.insert(test_datasets[i][0], 1, col, axis=1)
-#%%
+
 index_list = [test_datasets[i][1] for i in range(len(test_datasets))]
     
-#%% filling column 3
+#%% NAN REGRESSION
+### Imputing the -999 values of the 3rd column (1st feature) with a ridge 
+### regression, using as model matrix all the remaining (complete) features
 k_fold = 5
 lambdas = np.logspace(-10, 0, 30)
 
@@ -39,7 +44,10 @@ for i in range(len(train_datasets)):
     train_filled.append(train_jet_filled)
     test_filled.append(test_jet_filled)
     
-#%% remove highly correlated columns
+#%% HIGLY CORRELATED COLUMNS
+### Removing higly correlated columns in each sub-dataset
+### The choiche of the columns to remove is the result of the inspection analysis
+### (see feature_inspection.py)
 
 train_filled[0] = np.delete(train_filled[0], [4,5,8], 1)
 train_filled[1] = np.delete(train_filled[1], [4,5,8,20], 1)
@@ -50,7 +58,11 @@ test_filled[1] = np.delete(test_filled[1], [4,5,8,20], 1)
 test_filled[2] = np.delete(test_filled[2], [4,8,11,30], 1)
     
 
-#%% cap the ouliers
+#%% CAP THE OUTLIERS
+### 'outlier' : value out of the range mean +- 2*std
+### Substituting all the outliers with the corresponding critical value
+### Ex: mean = 3, std = 2: 7 --> 5
+###                        0 --> 1
 train_out = []
 test_out = []
 
@@ -60,7 +72,9 @@ for i in range(len(train_filled)):
     te = fix_outliers(test_filled[i])
     test_out.append(te)
 
-#%% log tranform of the positive and skewned columns
+#%% CORRECTION OF LONG TAILS FEATURES
+### Transforming the right long tailed features
+### From data inspection, it turns out they are the non-negative ones
 indexes_skew = []
 train_skew = []
 test_skew = []
@@ -74,7 +88,7 @@ for i in range(len(train_out)):
     train_skew.append(tra)
     test_skew.append(tes) 
     
-#%% cosine tranform of the angles
+#%% COSINE TRANSFORM OF THE ANGLES
 angle_cols0 = np.array([7, 10, 13, 15])
 angle_cols1 = np.array([7, 10, 13, 15, 18])
 angle_cols23 = np.array([10, 14, 17, 19, 23, 26])
@@ -88,12 +102,13 @@ for i in range(len(train_skew)):
     train_angle.append(tr)
     test_angle.append(te)
 
-#%% expansion with degree 7, 7, 7
+#%% POLYNOMIAL EXPANSION UP TO THE OPTIMAL DEGREE
+### The optimal degree is selected through cross validation over lambdas and degrees
 train_exp = []
 test_exp = []
 best_degrees = []
-degrees = np.array([1, 2, 3, 4, 5, 6, 7])
-deg = 7
+degrees = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+deg = 11
 #%% lasts 8h
 for i in range(len(train_angle)):
     ids, y, tx = split_into_ids_y_tx(train_angle[i])
@@ -106,7 +121,7 @@ for i in range(len(train_angle)):
     curr_exp_test = poly_expansion_blind(test_angle[i], deg)
     test_exp.append(curr_exp_test)
     
-#%% add coupled products
+#%% COUPLED CROSS-PRODUCTS
 train_prod = []
 test_prod = []
 
@@ -116,7 +131,7 @@ for i in range(len(train_angle)):
     train_prod.append(np.c_[train_exp[i], tr])
     test_prod.append(np.c_[test_exp[i], te])
     
-#%% add square root
+#%% SQUARE ROOT
 train_sqrt = []
 test_sqrt = []
 
@@ -126,7 +141,7 @@ for i in range(len(train_angle)):
     train_sqrt.append(np.c_[train_prod[i], tr])
     test_sqrt.append(np.c_[test_prod[i], te])
 
-#%% standardization
+#%% STANDARDIZATION
 # notice that the very first feature is the offset, which is a constant column
 # of ones, hence it cannot be standardized
 train_stand = []
@@ -139,23 +154,6 @@ for i in range(len(train_prod)):
     train_stand.append(curr_train)
     test_stand.append(curr_test)    
 
-#%% LINEAR polynomial expansion of the dataset
-expanded_train = []
-expanded_test = []
-deg_sel_train = []
-degrees = np.arange(1,8)
-
-# polinomial expansion of the train set
-for i in range(len(train_stand)):
-    curr_expansion, deg_sel = poly_expansion_lin(train_stand[i], degrees, k_fold, lambdas, seed = 1)
-    expanded_train.append(curr_expansion)
-    deg_sel_train.append(deg_sel)
-# polinomial expansion of the test set with the corresponding degree of the train
-for i in range(len(test_stand)):
-    curr_expansion = poly_expansion_blind_degrees(test_stand[i], deg_sel_train[i])
-    expanded_test.append(curr_expansion)
-    deg_sel_train.append(deg_sel)
-
 #%% RIDGE REGRESSION
 ws = []
 lambdas = np.logspace(-10, 0, 30)
@@ -164,24 +162,26 @@ lamb = []
 
 for i in range(len(train_stand)):
     ids, y, tx = split_into_ids_y_tx(train_stand[i])
-    l = cross_validation_demo_tx_lin(y, tx, k_fold, lambdas)[0]
+    l, best, rmse_tr, rmse_te = cross_validation_demo_tx_lin(y, tx, k_fold, lambdas)
     lamb.append(l)
     w = ridge_regression(y, tx, l)[0]
     ws.append(w)
     
-#%% compute the predictions
+    # plot_train_test(rmse_tr, rmse_te, lambdas, degree=7)
+    
+#%% COMPUTE CONTINOUS PREDICTIONS
 ys = generate_linear_prediction(test_stand, ws)
 
-#%% compute the optimal threshold for each sub-dataset
+#%% COMPUTE OPTIMAL THRESHOLD FOR EACH SUB-DATASET
 vec_thresholds = np.linspace(-2, 2, 101)
 thresholds = []
 for i in range(len(train_stand)):
     thr = optimal_threshold(train_stand[i], vec_thresholds, lamb[i])
     thresholds.append(thr)
 
-#%% compute predictions according to the selected threshold
+#%% COMPUTE AND COLLECT BINARY PREDICTIONS ACCORDING TO THE SELECTED THRESHOLD
 prediction = collect(ys, index_list, thresholds)
 
-#%% generate the submission
-generate_csv(prediction, test_original[:,0], "sample_submission_dm.csv")
+#%% GENERATE THE SUBMISSION
+generate_csv(prediction, test_original[:,0], "sample_submission_fi.csv")
 
