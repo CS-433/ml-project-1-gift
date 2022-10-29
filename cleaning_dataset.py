@@ -1,7 +1,33 @@
 import numpy as np
 
+############################# CLEANING DATA ###################################
+
+def ind_pos_neg(dataset):
+    """ Returns two boolean arrays whose True values indicate whether the
+        corresponding feature has all non-negative values and all non-positive
+        values, respectively
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+        Returns:
+            ind_pos: shape=(D+2, )
+            ind_neg: shape=(D+2, ) """
+            
+    n_cols = dataset[0,:].size
+    ind_col = np.arange(n_cols)
+    ret_pos = np.array([np.count_nonzero(dataset[:,j] < 0) for j in ind_col])
+    ind_pos = (ret_pos == 0)
+    ret_neg = np.array([np.count_nonzero(dataset[:,j] > 0) for j in ind_col])
+    ind_neg = (ret_neg == 0)
+    
+    return ind_pos, ind_neg
+
 def count_nan(dataset):
-    """ Count the -999 values for each feature in the dataset """
+    """ Count the -999 values for each feature in the dataset
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+        Returns:
+            ret: shape=(D, ) """
+    
     n_cols = dataset[0,:].size
     ind_col = np.arange(n_cols)
     ret = np.array([np.count_nonzero(dataset[:,j]==-999) for j in ind_col])
@@ -9,12 +35,22 @@ def count_nan(dataset):
     return ret
 
 def count_nan_for_feature(col_vector):
-    """ Count the -999 values for a given feature """
+    """ Count the -999 values for a given feature
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+        Returns:
+            ret: scalar """
+            
     return np.count_nonzero(col_vector==-999)
     
 def remove_feature_with_50pec(dataset):
     """ Remove all the features in the dataset having more than the 50% 
-        of -999 values """
+        of -999 values 
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+        Returns:
+            ret: shape=(N, D+2-d) (d number of removed features)"""
+            
     n = dataset[:, 0].size
     cnt = count_nan_for_feature(dataset)
     feat_to_keep = (cnt < 0.5*n)
@@ -22,17 +58,16 @@ def remove_feature_with_50pec(dataset):
     
     return ret
 
-def remove_deriv(dataset):
-    """ Remove the 'DER' features in the dataset """
-    feat_to_keep = np.array([0, 1, 15, 16, 17, 18, 19, 20, 21, 22,
-                             23, 24, 25, 26, 27, 28, 29, 30])
-    ret = dataset[:, feat_to_keep].copy()
-    
-    return ret
-
 def remove_nan_rows(dataset):
     """ Remove all the events in the dataset with at least one -999 value 
-        among the features """
+        among the features
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+        Returns:
+            ret: shape=(N-n, D+2) (n number of removed events)
+            selec_rows: shape=(N-n, )
+        """
+        
     check = []
     selec_rows = []
 
@@ -50,7 +85,13 @@ def remove_outlier_rows(dataset):
     """ Remove all the events in the dataset with at least one outlier
         among the features
         ('outlier': value whose distance from the mean of the corresponding 
-        feature in greater than 3 standard deviations) """
+        feature in greater than 2 standard deviations) 
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+        Returns:
+            ret: shape=(N-n, D+2) (n number of removed events)
+            ind_to_keep: shape=(N-n, )"""
+            
     ret = dataset.copy()
     
     mean = np.mean(ret[:,2:], axis=0)
@@ -64,12 +105,17 @@ def remove_outlier_rows(dataset):
     ind_to_keep = np.array(ind_to_keep)
     ind_to_keep = ind_to_keep.astype(int)
     
-    return ret[ind_to_keep]
+    return ret[ind_to_keep], ind_to_keep
 
 def count_outliers(dataset):
     """ Count the amount of outliers for each feature
         ('outlier': value whose distance from the mean of the corresponding 
-        feature in greater than 3 standard deviations) """
+        feature in greater than 3 standard deviations) 
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+        Returns:
+            ret: shape=(D, ) """
+            
     ret = dataset.copy()
     
     mean = np.mean(ret[:,2:], axis=0)
@@ -80,6 +126,16 @@ def count_outliers(dataset):
     return cnt_vec
 
 def fix_outliers(dataset):
+    """ Cap the outliers, converting evry outlier with the corresponding critical
+        value of mean+2*std or mean-2*std
+        ('outlier': value whose distance from the mean of the corresponding 
+        feature in greater than 3 standard deviations)
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+        Returns:
+            ret: shape=(N, D+2)
+        """
+        
     ret = dataset[:,2:].copy()
     first_col = dataset[:,:2].copy()
     row = ret.shape[0]
@@ -100,10 +156,16 @@ def fix_outliers(dataset):
     return final
 
 def nan_row_index(dataset, tol):
-    """ Return the indexes of the events whose -999 values are greater than tol """
+    """ Return the indexes of the events whose -999 values are greater than tol
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+            tol: scalar(int)
+        Returns:
+            ind_nan_r: shape=(N, ) """
+            
     check = []
     for i in range(len(dataset[:,0])):
-        check.append( np.count_nonzero(dataset[i,:]==-999))
+        check.append(np.count_nonzero(dataset[i,:]==-999))
 
     check  = np.array(check)   
     ind_nan_r =  check > tol
@@ -113,10 +175,14 @@ def nan_row_index(dataset, tol):
 def balance(dataset):
     """ Balance the dataset obtaining half of y=0 and the other half y=1
         The excess events are removed according to the amount of -999 values:
-        the higher the -999 values for a given event, the earlier it is removed """
+        the higher the -999 values for a given event, the earlier it is removed 
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+        Returns:
+            ret: shape=(2*n, D+2) (n number of the less frequent prediction) """
+            
     num_ones = np.sum(dataset[:,1]==1)
     num_minus_ones = np.sum(dataset[:,1]== 0)
-    Dim = num_ones + num_minus_ones
     ret = dataset.copy()
     
     index_minus_ones = dataset[:,1] == 0 
@@ -159,13 +225,3 @@ def balance(dataset):
 
     return ret
 
-
-
-
-def count_neg(dataset):
-    """ Count the negative values for each feature in the dataset """
-    n_cols = dataset[0,:].size
-    ind_col = np.arange(n_cols)
-    ret = np.array([np.count_nonzero(dataset[:,j] < 0) for j in ind_col])
-    
-    return ret

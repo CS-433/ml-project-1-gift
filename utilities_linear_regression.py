@@ -1,9 +1,40 @@
 import numpy as np
+from implementations import * 
+
+######################### UTILITIES LINEAR REGRESSION ########################
+def ridge_regression(y, tx, lambda_):
+    """ The Ridge Regression algorithm (RR)
+        Args:
+            y: shape=(N, ) (N number of events)
+            tx: shape=(N, D) (D number of features)
+            lambda_: scalar(float) penalization parameter
+        Returns:
+            w: shape=(D, ) optimal weights
+            loss: scalar(float) """
+            
+    N = y.size
+    D = tx[0,:].size
+    I = np.identity(D)
+    A = np.dot(tx.T,tx) + (lambda_*2*N)*I
+    b = np.dot(tx.T,y)
+    w = np.linalg.solve(A, b)
+    
+    loss = compute_loss(y, tx, w)
+    
+    return w, loss
+
 
 def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
-    """ Generate a minibatch iterator for a dataset
-        Data can be randomly shuffled to avoid ordering in the original data 
-        messing with the randomness of the minibatches """
+    """ Generate a minibatch iterator for a dataset.
+        Takes as input two iterables (here the output desired values 'y' and
+        the input data 'tx')
+        Outputs an iterator which gives mini-batches of `batch_size` matching 
+        elements from `y` and `tx`. Data can be randomly shuffled to avoid 
+        ordering in the original data messing with the randomness of the minibatches.
+        Example of use :
+            for minibatch_y, minibatch_tx in batch_iter(y, tx, 32):
+                <DO-SOMETHING> """
+    
     data_size = len(y)
 
     if shuffle:
@@ -23,67 +54,52 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
 
 def compute_mse(y, tx, w):
     """ Calculate the mse for the vector e = y - tx.dot(w) """
+    
     return 1 / 2 * np.mean((y-tx.dot(w)) ** 2)
 
 def compute_mae(y, tx, w):
     """ Calculate the mae for vector e = y - tx.dot(w) """
+    
     return np.mean(np.abs(y-tx.dot(w)))
 
 def compute_loss(y, tx, w):
-    """ Calculate the loss using either MSE or MAE """
+    """ Calculate the loss using either MSE or MAE 
+        Args:
+            y: shape=(N, )
+            tx: shape=(N, D)
+            w: shape=(2,). The vector of model parameters.
+        Returns:
+            loss: scalar(float), corresponding to the input parameters w """
+    
     return compute_mse(y, tx, w)
 
 def compute_gradient(y, tx, w):
-    """ Computes the gradient at w """
+    """ Compute the gradient at w 
+        Args:
+            y: shape=(N, )
+            tx: shape=(N, D)
+            w: shape=(2, ). The vector of model parameters.
+        Returns:
+            grad: shape=(D, ) (gradient of the loss at w) """
+            
     err = y - tx.dot(w)
     grad = -tx.T.dot(err) / len(err)
-    return grad, err
+    
+    return grad
 
 def compute_stoch_gradient(y, tx, w):
-    """ Compute a stochastic gradient """
+    """ Compute a stochastic gradient 
+        Args:
+            y: shape=(N, )
+            tx: shape=(N, D)
+            w: shape=(2, ). The vector of model parameters.
+        Returns:
+            grad: shape=(D, ) (stochastic gradient of the loss at w)"""
+    
     err = y - tx.dot(w)
     grad = -tx.T.dot(err) / len(err)
-    return grad, err
-
-def gradient_descent(y, tx, initial_w, max_iters, gamma):
-    """ The Gradient Descent (GD) algorithm """
-    # Define parameters to store w and loss
-    ws = [initial_w]
-    losses = [compute_loss(y,tx,initial_w)]
-    w = initial_w
-    for n_iter in range(max_iters):
-        # compute loss, gradient
-        grad, err = compute_gradient(y, tx, w)
-        loss = 1/2 * np.mean(err**2)
-        # update w by gradient descent
-        w = w - gamma * grad
-        # store w and loss
-        ws.append(w)
-        losses.append(loss)
-        
-    return losses, ws
-
-def stochastic_gradient_descent(y, tx, initial_w, batch_size, max_iters, gamma):
-    """ The Stochastic Gradient Descent algorithm (SGD) """
-    # Define parameters to store w and loss
-    ws = [initial_w]
-    losses = [compute_loss(y, tx, initial_w)]
-    w = initial_w
-
-    for n_iter in range(max_iters):
-
-        for y_batch, tx_batch in batch_iter(y, tx, batch_size=batch_size, num_batches=1):
-            # compute a stochastic gradient and loss
-            grad, _ = compute_stoch_gradient(y_batch, tx_batch, w)
-            # update w through the stochastic gradient update
-            w = w - gamma * grad
-            # calculate loss
-            loss = compute_loss(y, tx, w)
-            # store w and loss
-            ws.append(w)
-            losses.append(loss)
     
-    return losses, ws
+    return grad
 
 def build_poly(x, degree):
     """ Polynomial basis functions for input data x, for j=0 up to j=degree """
@@ -94,28 +110,14 @@ def build_poly(x, degree):
         
     return phi_x
 
-def least_squares(y, tx):
-    """ The Least Squares algorithm (LS) """
-    w = np.linalg.solve(np.dot(tx.T,tx), np.dot(tx.T,y))
-    mse = compute_mse(y, tx, w)
-    
-    return w, mse
-
-def ridge_regression(y, tx, lambda_):
-    """ The Ridge Regression algorithm (RR) """
-    N = y.size
-    D = tx[0,:].size
-    I = np.identity(D)
-    A = np.dot(tx.T,tx)+(lambda_*2*N)*I
-    b = np.dot(tx.T,y)
-    w = np.linalg.solve(A, b)
-    
-    loss = compute_loss(y, tx, w)
-    
-    return w, loss
-
 def build_k_indices(y, k_fold, seed):
-    """ Build k indices for k-fold """
+    """ Build k indices for k-fold 
+        Args:
+            y: shape=(N,)
+            k_fold: K in K-fold, i.e. the fold num
+            seed: the random seed
+        Returns:
+            ret: shape=(k_fold, N/k_fold) with the data indices for each fold """
     num_row = y.shape[0]
     interval = int(num_row / k_fold) # Here it computes the number of intervals
     np.random.seed(seed)
@@ -126,7 +128,18 @@ def build_k_indices(y, k_fold, seed):
 
 def cross_validation_x_lin(y, x, k_indices, k, lambda_, degree):
     """ Return the loss of ridge regression for a fold corresponding to k_indices 
-        The feature x gets expanded by a degree to build the regression matrix tx """
+        The feature x gets expanded by a degree to build the regression matrix tx 
+        Args:
+            y: shape=(N, ) (N number of events)
+            x: shape=(N, )
+            k_indices: 2D array returned by build_k_indices()
+            k: scalar, the k-th fold (N.B.: not to confused with k_fold which is the fold nums)
+            lambda_: scalar, cf. ridge_regression()
+            degree: scalar, cf. build_poly()
+        Returns:
+            loss_tr: scalar(float), rmse = sqrt(2 mse) of the training set
+            loss_te: scalar(float), rmse = sqrt(2 mse) of the testing set """
+            
     # get k'th subgroup in test, others in trai
     k_fold = len(k_indices)
     
@@ -154,7 +167,16 @@ def cross_validation_x_lin(y, x, k_indices, k, lambda_, degree):
 
 def cross_validation_tx_lin(y, tx, k_indices, k, lambda_):
     """ Return the loss of ridge regression for a fold corresponding to k_indices
-        The regression matrix tx is given as an input """
+        The regression matrix tx is given as an input 
+        Args:
+            y: shape=(N, ) (N number of events)
+            tx: shape=(N, D) (D number of features)
+            k_indices: 2D array returned by build_k_indices()
+            k: scalar, the k-th fold
+            lambda_: scalar, cf. ridge_regression()
+        Returns:
+            loss_tr: scalar(float), rmse = sqrt(2 mse) of the training set
+            loss_te: scalar(float), rmse = sqrt(2 mse) of the testing set """
 
     # get k'th subgroup in test, others in train
     k_fold = len(k_indices)
@@ -180,7 +202,16 @@ def cross_validation_tx_lin(y, tx, k_indices, k, lambda_):
 
 def cross_validation_demo_x_lin(x, y, degree, k_fold, lambdas):
     """ Cross validation over regularisation parameter lambda
-        The feature x gets expanded by a degree to build the regression matrix tx """
+        The feature x gets expanded by a degree to build the regression matrix tx 
+        Args:
+            y: shape=(N, ) (N number of events)
+            x: shape=(N, )
+            degree: integer, degree of the polynomial expansion
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            best_lambda : scalar, value of the best lambda
+            best_rmse : scalar, the associated root mean squared error for the best lambda """
     
     seed = 12
     
@@ -209,7 +240,16 @@ def cross_validation_demo_x_lin(x, y, degree, k_fold, lambdas):
 
 def cross_validation_demo_tx_lin(y, tx, k_fold, lambdas):
     """ Cross validation over regularisation parameter lambda 
-        The regression matrix tx is given as an input """
+        The regression matrix tx is given as an input 
+        Args:
+            y: shape=(N, ) (N number of events)
+            tx: shape=(N, D) (D number of features)
+            degree: integer, degree of the polynomial expansion
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            best_lambda : scalar, value of the best lambda
+            best_rmse : scalar, the associated root mean squared error for the best lambda """
     
     seed = 1
     k_indices = build_k_indices(y, k_fold, seed)
@@ -233,7 +273,18 @@ def cross_validation_demo_tx_lin(y, tx, k_fold, lambdas):
     return best_lambda, best_rmse
 
 def best_degree_selection_x_lin(x, y, degrees, k_fold, lambdas, seed = 1):
-    """ Cross validation over regularisation parameter lambda and degree """
+    """ Cross validation over regularisation parameter lambda and degree 
+        Args:
+            y: shape=(N, ) (N number of events)
+            x: shape=(N, )
+            degrees: shape = (d,), where d is the number of degrees to test 
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            best_degree: scalar, value of the best degree
+            best_lambda : scalar, value of the best lambda
+            best_rmse : scalar, the associated root mean squared error for the best lambda """
+            
     # define lists to store the loss of training data and test data
     best_lambdas = []
     best_rmses = []

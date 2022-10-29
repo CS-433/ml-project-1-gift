@@ -1,45 +1,51 @@
 import numpy as np
+
+from loading_data import *
+from preprocessing import *
+from cleaning_dataset import *
 from utilities_linear_regression import *
 from utilities_logistic_regression import *
+from implementations import *
+from postprocessing import *
 
-def standardize_train(x):
-    """Standardize the training dataset."""
-    ret = x.copy()
+############################# FEATURE ENGINEERING ############################
+
+def standardize_train(train):
+    """Standardize the training dataset
+       Args:
+           train: shape=(N, D+2) (N number of events, D number of features)
+       Returns:
+           ret: shape=(N, D+2) """
+               
+    ret = train.copy()
     mean = np.mean(ret[:,2:], axis=0)
     std = np.std(ret[:,2:], axis=0)
     ret[:,2:] = (ret[:,2:] - mean)/std
+    
     return ret, mean, std
 
-def standardize_test(x, mean_train, std_train):
-    """Standardize the testing data set, upon the mean and the standard deviation 
-        of training dataset """
-    ret = x.copy()
+def standardize_test(test, mean_train, std_train):
+    """ Standardize the testing dataset, upon the mean and the standard deviation 
+        of training dataset 
+        Args:
+            test: shape=(N, D+2) (N number of events, D number of features)
+            mean_train: shape=(D+2, )
+            std_train: shape=(D+2, )
+        Returns:
+            ret: shape=(N, D+2) """
+                
+    ret = test.copy()
     ret[:,2:] = (ret[:,2:] - mean_train)/std_train
     
     return ret
 
-def impute_nan_with_val(dataset, val):
-    """" Impute the -999 values with a given value """
-    ret = dataset.copy()
-    ret[ret==-999] = val
-        
-    return ret
-
-def impute_nan_with_mean(dataset):
-    """" Impute the -999 values with the mean of the corresponding feature """
-    ret = dataset.copy()
-
-    for j in range(len(dataset[0,:])):
-    
-        indexes_no999 = (dataset[:,j] != -999)
-        indexes_999 = (dataset[:,j] == -999)
-        curr_col_wo999 = ret[indexes_no999,j]
-        ret[indexes_999,j] = float(np.mean(curr_col_wo999))
-        
-    return ret
-
 def impute_nan_with_median(dataset):
-    """" Impute the -999 values with the median of the corresponding feature """
+    """ Impute the -999 values with the median of the corresponding feature
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+        Returns:
+            ret: shape=(N, D+2) """
+            
     ret = dataset.copy()
 
     for j in range(len(dataset[0,:])):
@@ -54,7 +60,18 @@ def impute_nan_with_median(dataset):
 def feature_regression_cols(y, x, degrees, k_fold, lambdas, seed = 1):
     """ Polynomial regression of y starding from x
         The best-degree polynomial expansion of x is performed by means of ridge
-        regression cross-validation over a vector of degrees and lambdas """
+        regression cross-validation over a vector of degrees and lambdas:
+        The return value yy is the full y, where -999 values are filled with the
+        corresponding prediction
+        Args:
+            y: shape=(N, ) (N number of events)
+            x: shape=(N, )
+            degrees: shape = (d,), where d is the number of degrees to test 
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            yy: shape=(N, ) """
+            
     yy = y.copy()
     xx = x.copy()
     
@@ -94,7 +111,18 @@ def feature_regression(ttrain, ttest, degrees, k_fold, lambdas, seed = 1):
     """ Polynomial regression of the -999 values of training and testing dataset
         The i-th feature to fill is predicted by the i-th full feature
         The internal regression in performed with the function:
-            feature_regression_cols(y ,x, ...) """
+            feature_regression_cols(y ,x, ...) 
+        The return valuest train and test are the 'full' training and testing
+        sets, where -999 values are filled with the corresponding prediction
+        Args:
+            ttrain: shape=(N, D+2) (N number of events in the training set)
+            ttest: shape=(M, D+2) (M number of events in the testing set)
+            degrees: shape = (d,), where d is the number of degrees to test 
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            train: shape=(N, D+2)
+            test: shape=(N, D+2) """
     
     train = ttrain.copy()
     n_rows_train = train.shape[0]
@@ -135,7 +163,16 @@ def feature_regression_col3(ttrain, ttest, k_fold, lambdas, seed = 1):
     """ Linear regression of the -999 values of the 1st feature 
         (3rd column) of the training (ttrain) and testing (ttest) dataset
         The regression is performed by ridge regression, where the penalizing
-        parameter is chosen with cross validation """
+        parameter is chosen with cross validation 
+        Args:
+            ttrain: shape=(N, D+2) (N number of events in the training set)
+            ttest: shape=(M, D+2) (M number of events in the testing set)
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            train: shape=(N, D+2)
+            test: shape=(N, D+2) """
+            
     col_train = ttrain[:,:2].copy()
     train = ttrain[:,2:].copy()
     n_rows_train = train.shape[0]
@@ -165,25 +202,70 @@ def feature_regression_col3(ttrain, ttest, k_fold, lambdas, seed = 1):
 
     return train, test
 
-def correct_skewness(dataset, ind):
+def cosine(dataset, angle_cols):
+    """ Correct the angle_cols features of the dataset by performing
+        a cosine tranformation f(x) = cos(x)
+        (angle_cols is an arry containing the indexes of the columns to be tranformed)
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+            angle_cols: shape=(n, ) (n number of features representing angles)
+        Returns:
+            ret: shape=(N, D+2) """
+            
     ret = dataset.copy()
-    ret[:, ind] = np.log(1 + ret[:,ind])
+    ret[:, angle_cols] = np.cos(ret[:, angle_cols])
+    
+    return ret   
+
+def correct_skewness(dataset, skew_cols):
+    """ Correct the skew_cols features of the dataset by performing
+        a logaritmic tranformation f(x) = log(1+x)
+        The features to correct are skewned and non-negative
+        (skew_cols is an arry of bools whose True values are the columns to be tranformed)
+        Args:
+            dataset: shape=(N, D+2) (N number of events, D number of features)
+            skew_cols: shape=(N, )
+        Returns:
+            ret: shape=(N, D+2) """
+            
+    ret = dataset.copy()
+    ret[:, skew_cols] = np.log(1 + ret[:,skew_cols])
         
     return ret
 
 def poly_expansion_col_lin(x, y, degrees, k_fold, lambdas, seed = 1):
     """ Polynomial expansion of the column x to predict y
         The best-degree selection is performed by means of ridge regression
-        cross-validation over a vector of degrees and lambdas """
+        cross-validation over a vector of degrees and lambdas
+        Args:
+            y: shape=(N, ) (N number of events)
+            x: shape=(N, )
+            degrees: shape = (d,), where d is the number of degrees to test 
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            best_deg: scalar(int)
+            tx: shape=(N, best_deg+1) """
+            
     best_deg = best_degree_selection_x_lin(x, y, degrees, k_fold, lambdas, seed)[0]
     tx = build_poly(x, best_deg)
+    tx = tx[:,1:]
     
     return tx, best_deg
 
 def poly_expansion_lin(dataset, degrees, k_fold, lambdas, seed = 1):
     """ Polynomial expansion of design matrix tx of the dataset
         The best-degree selection for each feature is performed by the function:
-            poly_expansion_col_lin(x, y, ...) """
+            poly_expansion_col_lin(x, y, ...) 
+        Args:
+            dataset: shape=(N, D+2) (N number of events)
+            degrees: shape = (d,), where d is the number of degrees to test 
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            degree_selected: shape=(D, )
+            ret: shape=(N, D*sum(degree_selected)+1) """
+            
     ret = dataset[:,[0,1]].copy()
     offset_col = np.ones((dataset[:,0].size,1))
     ret = np.hstack((ret, offset_col))
@@ -202,16 +284,34 @@ def poly_expansion_col_log(x, y, degrees, k_fold, lambdas, seed = 1):
     """ Polynomial expansion of the column x to predict y
         The best-degree selection is performed by means of a penalized logistic 
         regression with gradient descent cross-validation over a vector of 
-        degrees and lambdas """
+        degrees and lambdas 
+        Args:
+            y: shape=(N, ) (N number of events)
+            x: shape=(N, )
+            degrees: shape = (d,), where d is the number of degrees to test 
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            best_deg: scalar(int)
+            tx: shape=(N, best_deg+1)"""
     best_deg = best_degree_selection_x_log(x, y, degrees, k_fold, lambdas, seed)[0]
     tx = build_poly(x, best_deg)
+    tx = tx[:,1:]
     
     return tx, best_deg
 
 def poly_expansion_log(dataset, degrees, k_fold, lambdas, seed = 1):
     """ Polynomial expansion of design matrix tx of the dataset
         The best-degree selection for each feature is performed by the function:
-            poly_expansion_col_log(x, y, ...) """
+            poly_expansion_col_log(x, y, ...)
+        Args:
+            dataset: shape=(N, D+2) (N number of events)
+            degrees: shape = (d,), where d is the number of degrees to test 
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            degree_selected: shape=(D, )
+            ret: shape=(N, D*sum(degree_selected)+1) """
     ret = []
     ret = np.array(ret)
     ids, y, tx = split_into_ids_y_tx(dataset)
@@ -226,9 +326,47 @@ def poly_expansion_log(dataset, degrees, k_fold, lambdas, seed = 1):
         
     return ret, degree_selected
 
+def best_degree_dataset(dataset, degrees, k_fold, lambdas, seed = 1):
+    """ Cross validation over degree to find the optimal polynomial expansion
+        degree of the model matrix tx.
+        The best-degree selection is performed by means of ridge regression
+        cross-validation over a vector of degrees and lambdas 
+        Args:
+            dataset: shape=(N, D+2) (N number of events)
+            degrees: shape = (d,), where d is the number of degrees to test 
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            best_degree: scalar(int)
+            best_lambda: scalar(float)
+            best_rmse: scalar(float) """
+    
+    ids, y, tx = split_into_ids_y_tx(dataset)
+    # define lists to store the loss of training data and test data
+    best_lambdas = []
+    best_rmses = []
+    
+    for deg in degrees:
+        
+        best_lambdas.append(cross_validation_demo_deg_tx_lin(y,tx, deg, k_fold, lambdas)[0])
+        best_rmses.append(cross_validation_demo_deg_tx_lin(y,tx, deg, k_fold, lambdas)[1])
+    
+    best_ind = np.argmin(best_rmses)
+    best_degree = degrees[best_ind]
+    best_lambda = best_lambdas[best_ind]
+    best_rmse = best_rmses[best_ind]
+    
+    return best_degree, best_lambda, best_rmse
+
 def poly_expansion_blind(dataset, deg):
     """ Polynomial expansion of design matrix tx of the dataset
-        Each feature gets expanded by a degree deg """
+        Each feature gets expanded by a degree deg
+        Args:
+            dataset: shape=(N, D+2) (N number of events)
+            deg: scalar(int)
+        Returns:
+            ret: shape=(N, D*deg+1) """
+            
     ret = dataset[:,[0,1]].copy()
     offset_col = np.ones((dataset[:,0].size,1))
     ret = np.hstack((ret, offset_col))
@@ -245,7 +383,13 @@ def poly_expansion_blind(dataset, deg):
 
 def poly_expansion_blind_degrees(dataset, degrees):
     """ Polynomial expansion of design matrix tx of the dataset
-        Each feature gets expanded by the corresponding degree in degrees """
+        Each feature gets expanded by the corresponding degree in degrees
+        Args:
+            dataset: shape=(N, D+2) (N number of events)
+            degrees: shape=(D, )
+        Returns:
+            ret: shape=(N, D*sum(degrees)+1) """
+            
     ret = dataset[:,[0,1]].copy()
     offset_col = np.ones((dataset[:,0].size,1))
     ret = np.hstack((ret, offset_col))
@@ -262,19 +406,39 @@ def poly_expansion_blind_degrees(dataset, degrees):
     return ret
 
 def feature_cross_products(dataset):
-    sel_ds =  dataset[:,2:]
+    """ Given a dataset with D features (with the offset as first column) 
+        Returns a dataset obtained by the cross-product of D-1 coupled features
+        (every feature, but the offset, gets multiplied by all the others 
+         Args:
+             dataset: shape=(N, D+2) (N number of events)
+         Returns:
+             prod_cols: shape=(N, p) (p number of cross products) """
+             
+    sel_ds =  dataset[:,3:]
     length_col = sel_ds.shape[1]
     lenght_row = sel_ds.shape[0]
-    prod_cols = np.zeros((lenght_row ,1))
+    prod_cols = np.zeros((lenght_row, 1))
     
     for i in np.arange(length_col):
         p_col = sel_ds[:,(i+1):]
         p_i =  sel_ds[:,i].reshape(lenght_row ,1)
-        prod_cols = np.c_[prod_cols , p_i * p_col ]
+        prod_cols = np.c_[prod_cols , p_i*p_col ]
     
-    return prod_cols
+    return prod_cols[:, 1:]
 
 def squareroot(dataset):
-    ret = dataset[:, 2:].copy()
+    """ Given a dataset with D features (with the offset as first column)
+        Returns a dataset obtained by performing the square root of the D-1
+        rescaled features (not the offset) 
+        Args:
+            dataset: shape=(N, D+2) (N number of events)
+        Returns:
+            prod_cols: shape=(N, D-1) """
+            
+    maximum = np.max(dataset,axis=0)
+    minimum = np.min(dataset,axis=0)
+    ret = (dataset[:,3:] - minimum[3:])/(maximum[3:] - minimum[3:])
+    
     ret = np.sqrt(ret)
+    
     return ret

@@ -7,27 +7,30 @@ from cleaning_dataset import *
 from feature_engineering import *
 from utilities_linear_regression import *
 from utilities_logistic_regression import *
+from implementations import * 
 from postprocessing import *
 
-##############################################################################
-
-#%% Importing the train dataset and test dataset
+#%% LOADING DATASET
+### Importing the train dataset and test dataset
 train_original, col24_train = load_train_dataset()
 test_original, col24_test = load_test_dataset()
 
-#%% Splitting the dataset into 3 sub-datasets according to the categoric
-# feature and deleting the constant features
+#%% CATEGORICAL SPLITTING
+### Splitting the dataset into 3 sub-datasets according to the categoric
+### feature and deleting the constant features
 train_datasets = split_jet(train_original, col24_train)
 test_datasets = split_jet(test_original, col24_test)
+
 # add the zero-columns for the prediction of the test set
 for i in range(len(test_datasets)):
     n_rows = test_datasets[i][0][:,0].size
     col = np.zeros(n_rows)
     test_datasets[i][0] = np.insert(test_datasets[i][0], 1, col, axis=1)
-#%%
 index_list = [test_datasets[i][1] for i in range(len(test_datasets))]
     
-#%% filling column 3
+#%% NAN REGRESSION
+### Imputing the -999 values of the 3rd column (1st feature) with a ridge 
+### regression, using as model matrix all the remaining (complete) features
 k_fold = 5
 lambdas = np.logspace(-10, 0, 30)
 
@@ -39,7 +42,10 @@ for i in range(len(train_datasets)):
     train_filled.append(train_jet_filled)
     test_filled.append(test_jet_filled)
     
-#%% remove highly correlated columns
+#%% HIGLY CORRELATED COLUMNS
+### Removing higly correlated columns in each sub-dataset
+### The choiche of the columns to remove is the result of the inspection analysis
+### (see inspection.py)
 
 train_filled[0] = np.delete(train_filled[0], [4,5,8], 1)
 train_filled[1] = np.delete(train_filled[1], [4,5,8,20], 1)
@@ -50,7 +56,11 @@ test_filled[1] = np.delete(test_filled[1], [4,5,8,20], 1)
 test_filled[2] = np.delete(test_filled[2], [4,8,11,30], 1)
     
 
-#%% cap the ouliers
+#%% CAP THE OUTLIERS
+### 'outlier' : value out of the range mean +- 2*std
+### Substituting all the outliers with the corresponding critical value
+### Ex: mean = 3, std = 2: 7 --> 5
+###                        0 --> 1
 train_out = []
 test_out = []
 
@@ -60,7 +70,8 @@ for i in range(len(train_filled)):
     te = fix_outliers(test_filled[i])
     test_out.append(te)
 
-#%% log tranform of the positive and skewned columns
+#%% CORRECTION OF THE SKEWNESS
+### Transforming the skewned
 indexes_skew = []
 train_skew = []
 test_skew = []
@@ -88,23 +99,23 @@ for i in range(len(train_skew)):
     train_angle.append(tr)
     test_angle.append(te)
 
-#%% expansion with degree 7, 7, 7
-train_exp = []
-test_exp = []
-best_degrees = []
-degrees = np.array([1, 2, 3, 4, 5, 6, 7])
-deg = 7
-#%% lasts 8h
-for i in range(len(train_angle)):
-    ids, y, tx = split_into_ids_y_tx(train_angle[i])
-    deg = best_degree_dataset(y, tx, degrees, k_fold, lambdas, seed = 1)[0]
+#%% LINEAR polynomial expansion of the dataset
+expanded_train = []
+expanded_test = []
+deg_sel_train = []
+degrees = np.arange(1,8)
 
-#%%
+# polinomial expansion of the train set
 for i in range(len(train_angle)):
-    curr_exp_train = poly_expansion_blind(train_angle[i], deg)
-    train_exp.append(curr_exp_train)
-    curr_exp_test = poly_expansion_blind(test_angle[i], deg)
-    test_exp.append(curr_exp_test)
+    curr_expansion, deg_sel = poly_expansion_lin(train_angle[i], degrees, k_fold, lambdas, seed = 1)
+    expanded_train.append(curr_expansion)
+    deg_sel_train.append(deg_sel)
+# polinomial expansion of the test set with the corresponding degree of the train
+for i in range(len(test_stand)):
+    curr_expansion = poly_expansion_blind_degrees(test_angle[i], deg_sel_train[i])
+    expanded_test.append(curr_expansion)
+    deg_sel_train.append(deg_sel)
+
     
 #%% add coupled products
 train_prod = []
@@ -138,23 +149,6 @@ for i in range(len(train_prod)):
     curr_test[:,2] = 1
     train_stand.append(curr_train)
     test_stand.append(curr_test)    
-
-#%% LINEAR polynomial expansion of the dataset
-expanded_train = []
-expanded_test = []
-deg_sel_train = []
-degrees = np.arange(1,8)
-
-# polinomial expansion of the train set
-for i in range(len(train_stand)):
-    curr_expansion, deg_sel = poly_expansion_lin(train_stand[i], degrees, k_fold, lambdas, seed = 1)
-    expanded_train.append(curr_expansion)
-    deg_sel_train.append(deg_sel)
-# polinomial expansion of the test set with the corresponding degree of the train
-for i in range(len(test_stand)):
-    curr_expansion = poly_expansion_blind_degrees(test_stand[i], deg_sel_train[i])
-    expanded_test.append(curr_expansion)
-    deg_sel_train.append(deg_sel)
 
 #%% RIDGE REGRESSION
 ws = []

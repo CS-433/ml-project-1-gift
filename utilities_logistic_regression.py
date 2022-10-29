@@ -1,5 +1,7 @@
 import numpy as np
+from implementations import *
 
+######################### UTILITIES LOGISTIC REGRESSION #######################
 
 def build_poly(x, degree):
     """ Polynomial basis functions for input data x, for j=0 up to j=degree """
@@ -11,7 +13,13 @@ def build_poly(x, degree):
     return phi_x
         
 def build_k_indices(y, k_fold, seed):
-    """ Build k indices for k-fold """
+    """ Build k indices for k-fold 
+        Args:
+            y: shape=(N,)
+            k_fold: K in K-fold, i.e. the fold num
+            seed: the random seed
+        Returns:
+            ret: shape=(k_fold, N/k_fold) with the data indices for each fold """
     num_row = y.shape[0]
     interval = int(num_row / k_fold) # Here it computes the number of intervals
     np.random.seed(seed)
@@ -24,7 +32,14 @@ def sigmoid(t):
     return (1 + np.exp(-t))**(-1)
 
 def calculate_loss(y, tx, w):
-    """ Compute the cost by negative log likelihood """
+    """ Compute the cost by negative log likelihood
+        Args:
+            y: shape=(N, )
+            tx: shape=(N, D)
+            w: shape=(2,). The vector of model parameters.
+        Returns:
+            loss: scalar(float), corresponding to the input parameters w """
+            
     assert y.shape[0] == tx.shape[0]
     assert tx.shape[1] == w.shape[0]
 
@@ -35,48 +50,28 @@ def calculate_loss(y, tx, w):
     return log_loss
 
 def calculate_gradient(y, tx, w):
-    """ Compute the gradient of logistic loss """
+    """ Compute the gradient of logistic loss 
+        Args:
+            y: shape=(N, )
+            tx: shape=(N, D)
+            w: shape=(2, ). The vector of model parameters.
+        Returns:
+            grad: shape=(D, ) (gradient of the loss at w) """
+            
     N = y.size
     w = w.reshape(-1)
     grad = (1/N) * np.dot(tx.T, sigmoid(tx.dot(w))-y)
 
     return grad
 
-def learning_by_gradient_descent(y, tx, w, gamma):
-    """ Do one step of gradient descent using logistic regression. 
-        Return the loss and the updated w """
-    
-    loss = calculate_loss(y, tx, w)
-    w = w.reshape(-1)
-    w = w - gamma*calculate_gradient(y, tx, w)
-    
-    return loss, w
-
-def logistic_regression_gradient_descent_demo(y, x):
-    """ Logistic Regression by Gradient Descent algorithm """
-    # init parameters
-    max_iter = 10000
-    threshold = 1e-8
-    gamma = 0.5
-    losses = []
-
-    # build tx
-    tx = np.c_[np.ones((y.shape[0], 1)), x]
-    w = np.zeros((tx.shape[1], 1))
-
-    # start the logistic regression
-    for iter in range(max_iter):
-        # get loss and update w.
-        loss, w = learning_by_gradient_descent(y, tx, w, gamma)
-        # converge criterion
-        losses.append(loss)
-        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
-            break
-    
-    return w
-
 def calculate_hessian(y, tx, w):
-    """ Return the Hessian of the logistic loss function """
+    """ Return the Hessian of the logistic loss function 
+        Args:
+            y:  shape=(N, 1) ( N number of events)
+            tx: shape=(N, D) (D number of features)
+            w:  shape=(D, 1) 
+        Returns:
+            hess: shape=(D, D), hessian matrix """
     
     N = y.size
     diagonal = np.ndarray.flatten(sigmoid(tx.dot(w))*(1-sigmoid(tx.dot(w))))
@@ -87,94 +82,54 @@ def calculate_hessian(y, tx, w):
 
 def logistic_regression(y, tx, w):
     """ Return the logistic loss, gradient of the logistic loss, and hessian 
-        of the logistic loss """
+        of the logistic loss 
+        Args:
+            y:  shape=(N, 1)
+            tx: shape=(N, D)
+            w:  shape=(D, 1) 
+        Returns:
+            loss: scalar number
+            gradient: shape=(D, 1) 
+            hessian: shape=(D, D) """
+            
     loss = calculate_loss(y, tx, w)
     grad = calculate_gradient(y, tx, w)
     hess = calculate_hessian(y, tx, w)
     
     return loss, grad, hess
 
-def learning_by_newton_method(y, tx, w, gamma):
-    """ Do one step of Newton's method
-        Return the loss and updated w """
-    loss, grad, hess = logistic_regression(y, tx, w)
-    g = np.linalg.solve(hess,grad)
-    w = w -gamma*g
-   
-    return loss, w
-
-def logistic_regression_newton_method_demo(y, x):
-    """ Logistic Regression by Newton Method algorithm """
-    # init parameters
-    max_iter = 100
-    threshold = 1e-8
-    lambda_ = 0.1
-    gamma = 1.
-    losses = []
-
-    # build tx
-    tx = np.c_[np.ones((y.shape[0], 1)), x]
-    w = np.zeros((tx.shape[1], 1))
-
-    # start the logistic regression
-    for iter in range(max_iter):
-        # get loss and update w.
-        loss, w = learning_by_newton_method(y, tx, w, gamma)
-        # converge criterion
-        losses.append(loss)
-        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
-            break
-    
-    return w
-
 def penalized_logistic_regression(y, tx, w, lambda_):
-    """ Return the penalized logistic loss and its gradient """
+    """ Return the penalized logistic loss and its gradient 
+        Args:
+            y:  shape=(N, 1)
+            tx: shape=(N, D)
+            w:  shape=(D, 1)
+            lambda_: scalar
+        Returns:
+            loss: scalar number
+            gradient: shape=(D, 1) """
+            
     pen_log_loss = calculate_loss(y,tx,w) + lambda_*np.linalg.norm(w)**2
     grad = calculate_gradient(y,tx,w)
     pen = (2*lambda_*w).reshape(-1)
     pen_grad = grad + pen
     
     return pen_log_loss, pen_grad
-
-def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
-    """ Do one step of gradient descent, using the penalized logistic regression.
-        Return the loss and updated w """
-    loss, grad = penalized_logistic_regression(y, tx, w, lambda_)
-    w = w.reshape(-1)
-    w = w - gamma*grad
-    
-    return loss, w
-
-def logistic_regression_penalized_gradient_descent_demo(y, tx, lambda_):
-    """ Penalized Logistic Regression by Gradient Descent algorithm """
-    # init parameters
-    max_iter = 10000
-    gamma = 0.5
-    threshold = 1e-3
-    losses = []
-
-    # build tx
-    # tx = np.c_[np.ones((y.shape[0], 1)), x]
-    w = np.zeros((tx.shape[1], 1))
-    
-    # start the logistic regression
-    for iter in range(max_iter):
-        # get loss and update w.
-        loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
-        # log info
-        #if iter % 100 == 0:
-        #    print("Current iteration={i}, loss={l}".format(i=iter, l=loss))    
-        # converge criterion
-        losses.append(loss)
-        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
-            break
-    
-    return w
     
 def cross_validation_x_log(y, x, k_indices, k, lambda_, degree):
     """ Return the loss of penalized logistic regression with gradient descent
         for a fold corresponding to k_indices 
-        The feature x gets expanded by a degree to build the regression matrix tx """
+        The feature x gets expanded by a degree to build the regression matrix tx 
+        Args:
+            y: shape=(N, ) (N number of events)
+            x: shape=(N, )
+            k_indices: 2D array returned by build_k_indices()
+            k: scalar, the k-th fold (N.B.: not to confused with k_fold which is the fold nums)
+            lambda_: scalar, cf. penalized logistic with GD
+            degree: scalar, cf. build_poly()
+        Returns:
+            loss_tr: scalar(float), rmse = sqrt(2 mse) of the training set
+            loss_te: scalar(float), rmse = sqrt(2 mse) of the testing set"""
     
     # get k'th subgroup in test, others in train: TODO
     k_fold = len(k_indices)
@@ -206,7 +161,16 @@ def cross_validation_x_log(y, x, k_indices, k, lambda_, degree):
 def cross_validation_tx_log(y, tx, k_indices, k, lambda_):
     """ Return the loss of penalized logistic regression with gradient descent
         for a fold corresponding to k_indices
-        The regression matrix tx is given as an input """
+        The regression matrix tx is given as an input 
+        Args:
+            y: shape=(N, ) (N number of events)
+            tx: shape=(N, D) (D number of features)
+            k_indices: 2D array returned by build_k_indices()
+            k: scalar, the k-th fold
+            lambda_: scalar, cf. penalized logistic with GD
+        Returns:
+            loss_tr: scalar(float), rmse = sqrt(2 mse) of the training set
+            loss_te: scalar(float), rmse = sqrt(2 mse) of the testing set"""
 
     # get k'th subgroup in test, others in train: TODO
     k_fold = len(k_indices)
@@ -233,7 +197,16 @@ def cross_validation_tx_log(y, tx, k_indices, k, lambda_):
 def cross_validation_demo_x_log(x, y, degree, k_fold, lambdas):
     """ Return the loss of penalized logistic regression with gradient descent
         for a fold corresponding to k_indices
-        The feature x gets expanded by a degree to build the regression matrix tx """
+        The feature x gets expanded by a degree to build the regression matrix tx 
+        Args:
+            y: shape=(N, ) (N number of events)
+            x: shape=(N, )
+            degree: integer, degree of the polynomial expansion
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            best_lambda : scalar, value of the best lambda
+            best_rmse : scalar, the associated root mean squared error for the best lambda"""
     
     seed = 12
     
@@ -266,7 +239,16 @@ def cross_validation_demo_x_log(x, y, degree, k_fold, lambdas):
 def cross_validation_demo_tx_log(y, tx, k_fold, lambdas):
     """ Return the loss of penalized logistic regression with gradient descent
         for a fold corresponding to k_indices
-        The regression matrix tx is given as an input """
+        The regression matrix tx is given as an input 
+        Args:
+            y: shape=(N, ) (N number of events)
+            tx: shape=(N, D) (D number of features)
+            degree: integer, degree of the polynomial expansion
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            best_lambda : scalar, value of the best lambda
+            best_rmse : scalar, the associated root mean squared error for the best lambda """
     
     seed = 1 # set the seed like the one of the best_degree_selection function; put 12 for the graph
     
@@ -293,7 +275,18 @@ def cross_validation_demo_tx_log(y, tx, k_fold, lambdas):
     return best_lambda, best_rmse
 
 def best_degree_selection_x_log(x, y, degrees, k_fold, lambdas, seed = 1):
-    """ Cross validation over regularisation parameter lambda and degree """
+    """ Cross validation over regularisation parameter lambda and degree 
+        Args:
+            y: shape=(N, ) (N number of events)
+            x: shape=(N, )
+            degrees: shape = (d,), where d is the number of degrees to test 
+            k_fold: integer, the number of folds
+            lambdas: shape = (p, ) where p is the number of values of lambda to test
+        Returns:
+            best_degree: scalar, value of the best degree
+            best_lambda : scalar, value of the best lambda
+            best_rmse : scalar, the associated root mean squared error for the best lambda """
+            
     # define lists to store the loss of training data and test data
     best_lambdas = []
     best_rmses = []
