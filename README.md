@@ -1,6 +1,6 @@
 # Higgs Boson Challenge EPFL 2022 - Machine Learning (CS-433)
 The repository contains all the material usedo to face the EPFL Machine Learning Higgs Boson Challenge (https://www.aicrowd.com/challenges/epfl-machine-learning-higgs) and it is organized as follows:
- - useful documentation and references consulted during the project ('documentation' folder)
+ - useful documentation and references consulted during the project ('documentation' folder) `documentation`
  - (down-) loading of the dataset and (up-) loading of the results ('loading_dataset.py')
  - preliminary inspection of the dataset (INSPECTION folder) QUI DENTRO METTIAMO ANCHE I PLOT
  - cleaning of the dataset (cleaning_dataset.py)
