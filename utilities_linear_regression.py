@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from implementations import * 
 
 ######################### UTILITIES LINEAR REGRESSION ########################
@@ -270,7 +271,7 @@ def cross_validation_demo_tx_lin(y, tx, k_fold, lambdas):
     minpos = rmse_te.index(best_rmse)  # Get the position of the minimum value of average loss 
     best_lambda = lambdas[minpos]
     
-    return best_lambda, best_rmse
+    return best_lambda, best_rmse, rmse_tr, rmse_te
 
 def best_degree_selection_x_lin(x, y, degrees, k_fold, lambdas, seed = 1):
     """ Cross validation over regularisation parameter lambda and degree 
@@ -300,3 +301,21 @@ def best_degree_selection_x_lin(x, y, degrees, k_fold, lambdas, seed = 1):
     best_rmse = best_rmses[best_ind]
     
     return best_degree, best_lambda, best_rmse
+
+def plot_train_test(train_errors, test_errors, lambdas, degree):
+    """
+    train_errors, test_errors and lambas should be list (of the same size) the respective train error and test error for a given lambda,
+    * lambda[0] = 1
+    * train_errors[0] = RMSE of a ridge regression on the train set
+    * test_errors[0] = RMSE of the parameter found by ridge regression applied on the test set
+    
+    degree is just used for the title of the plot.
+    """
+    plt.semilogx(lambdas, train_errors, color='b', marker='*', label="Train error")
+    plt.semilogx(lambdas, test_errors, color='r', marker='*', label="Test error")
+    plt.xlabel("lambda")
+    plt.ylabel("RMSE")
+    plt.title("Ridge regression for polynomial degree " + str(degree))
+    leg = plt.legend(loc=1, shadow=True)
+    leg.draw_frame(False)
+    plt.savefig("ridge_regression")
