@@ -1,7 +1,168 @@
 import numpy as np
-from implementations import *
 
 ######################### UTILITIES LOGISTIC REGRESSION #######################
+def learning_by_gradient_descent(y, tx, w, gamma):
+    """ Do one step of gradient descent using logistic regression. 
+        Return the loss and the updated w.
+        Args:
+            y:  shape=(N, 1)
+            tx: shape=(N, D)
+            w:  shape=(D, 1) 
+            gamma: float
+        Returns:
+            loss: scalar number
+            w: shape=(D, 1) """
+    
+    loss = calculate_loss(y, tx, w)
+    w = w.reshape(-1)
+    w = w - gamma*calculate_gradient(y, tx, w)
+    
+    return loss, w
+
+def logistic_regression_gradient_descent_demo(y, x):
+    # init parameters
+    max_iter = 10000
+    threshold = 1e-8
+    gamma = 0.5
+    losses = []
+
+    # build tx
+    tx = np.c_[np.ones((y.shape[0], 1)), x]
+    w = np.zeros((tx.shape[1], 1))
+
+    # start the logistic regression
+    for iter in range(max_iter):
+        # get loss and update w.
+        loss, w = learning_by_gradient_descent(y, tx, w, gamma)
+        # log info
+        #if iter % 100 == 0:
+         #   print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+    # visualization
+    # visualization(y, x, mean_x, std_x, w, "classification_by_logistic_regression_gradient_descent", True)
+    # print("loss={l}".format(l=calculate_loss(y, tx, w)))
+    
+    return w
+
+def logistic_regression_stochastic_gradient_descent_demo(y, x, batch_size=1):
+    # init parameters
+    max_iter = 10000
+    threshold = 1e-8
+    gamma = 0.5
+    losses = []
+
+    # build tx
+    tx = np.c_[np.ones((y.shape[0], 1)), x]
+    w = np.zeros((tx.shape[1], 1))
+
+    # start the logistic regression
+    for iter in range(max_iter):
+        for y_batch, tx_batch in batch_iter(y, tx, batch_size=batch_size, num_batches=1):
+            
+            # get loss and update w.
+            loss, w = learning_by_gradient_descent(y_batch, tx_batch, w, gamma)
+            losses.append(loss)
+            if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+                break
+    
+    return w
+
+def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
+    """ Do one step of gradient descent, using the penalized logistic regression.
+        Return the loss and updated w.
+        Args:
+            y:  shape=(N, 1)
+            tx: shape=(N, D)
+            w:  shape=(D, 1)
+            gamma: scalar
+            lambda_: scalar
+        Returns:
+            loss: scalar number
+            w: shape=(D, 1)"""
+   
+    loss, grad = penalized_logistic_regression(y, tx, w, lambda_)
+    w = w.reshape(-1)
+    w = w - gamma*grad
+    
+    return loss, w
+
+def logistic_regression_penalized_gradient_descent_demo(y, tx, lambda_):
+    # init parameters
+    max_iter = 10000
+    gamma = 0.5
+    threshold = 1e-3
+    losses = []
+
+    # build tx
+    # tx = np.c_[np.ones((y.shape[0], 1)), x]
+    w = np.zeros((tx.shape[1], 1))
+    
+    # start the logistic regression
+    for iter in range(max_iter):
+        # get loss and update w.
+        loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
+        # log info
+        #if iter % 100 == 0:
+        #    print("Current iteration={i}, loss={l}".format(i=iter, l=loss))    
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+    
+    return w
+
+def logistic_regression_penalized_stochastic_gradient_descent_demo(y, tx, lambda_, batch_size=1):
+    # init parameters
+    max_iter = 10000
+    gamma = 0.5
+    threshold = 1e-3
+    losses = []
+
+    # build tx
+    # tx = np.c_[np.ones((y.shape[0], 1)), x]
+    w = np.zeros((tx.shape[1], 1))
+    
+    # start the logistic regression
+    for iter in range(max_iter):
+        for y_batch, tx_batch in batch_iter(y, tx, batch_size=batch_size, num_batches=1):
+            # get loss and update w.
+            loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
+            losses.append(loss)
+            if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+                break
+    return w
+
+
+def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
+    """ Generate a minibatch iterator for a dataset.
+        Takes as input two iterables (here the output desired values 'y' and
+        the input data 'tx')
+        Outputs an iterator which gives mini-batches of `batch_size` matching 
+        elements from `y` and `tx`. Data can be randomly shuffled to avoid 
+        ordering in the original data messing with the randomness of the minibatches.
+        Example of use :
+            for minibatch_y, minibatch_tx in batch_iter(y, tx, 32):
+                <DO-SOMETHING> """
+    
+    data_size = len(y)
+
+    if shuffle:
+        shuffle_indices = np.random.permutation(np.arange(data_size))
+        shuffled_y = y[shuffle_indices]
+        shuffled_tx = tx[shuffle_indices]
+    else:
+        shuffled_y = y
+        shuffled_tx = tx
+    for batch_num in range(num_batches):
+        start_index = batch_num * batch_size
+        end_index = min((batch_num + 1) * batch_size, data_size)
+        if start_index != end_index:
+            yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
+
+    return
 
 def build_poly(x, degree):
     """ Polynomial basis functions for input data x, for j=0 up to j=degree """
@@ -186,7 +347,7 @@ def cross_validation_tx_log(y, tx, k_indices, k, lambda_):
     tx_train = tx[ind_train,:]
     
     # ridge regression
-    w_k = logistic_regression_penalized_gradient_descent_demo(y_train, tx_train, lambda_)
+    w_k = logistic_regression_penalized_stochastic_gradient_descent_demo(y_train, tx_train, lambda_)
     
     # calculate the loss for train and test data
     loss_tr = np.sqrt(2*np.exp(-calculate_loss(y_train, tx_train, w_k)))
@@ -272,7 +433,7 @@ def cross_validation_demo_tx_log(y, tx, k_fold, lambdas):
     #cross_validation_visualization(lambdas, rmse_tr, rmse_te)
     #print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best test rmse is %.5f with a test rmse of %.3f" % (degree, best_lambda, best_rmse))
     
-    return best_lambda, best_rmse
+    return best_lambda, best_rmse, rmse_tr, rmse_te
 
 def best_degree_selection_x_log(x, y, degrees, k_fold, lambdas, seed = 1):
     """ Cross validation over regularisation parameter lambda and degree 

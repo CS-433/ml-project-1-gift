@@ -1,12 +1,10 @@
 import numpy as np
 
 from loading_data import *
-from preprocessing import *
 from cleaning_dataset import *
 from utilities_linear_regression import *
 from utilities_logistic_regression import *
 from implementations import *
-from postprocessing import *
 
 ############################# FEATURE ENGINEERING ############################
 
@@ -18,9 +16,9 @@ def standardize_train(train):
            ret: shape=(N, D+2) """
                
     ret = train.copy()
-    mean = np.mean(ret[:,2:], axis=0)
-    std = np.std(ret[:,2:], axis=0)
-    ret[:,2:] = (ret[:,2:] - mean)/std
+    mean = np.mean(ret[:,3:], axis=0)
+    std = np.std(ret[:,3:], axis=0)
+    ret[:,3:] = (ret[:,3:] - mean)/std
     
     return ret, mean, std
 
@@ -35,7 +33,7 @@ def standardize_test(test, mean_train, std_train):
             ret: shape=(N, D+2) """
                 
     ret = test.copy()
-    ret[:,2:] = (ret[:,2:] - mean_train)/std_train
+    ret[:,3:] = (ret[:,3:] - mean_train)/std_train
     
     return ret
 
@@ -414,7 +412,7 @@ def feature_cross_products(dataset):
          Returns:
              prod_cols: shape=(N, p) (p number of cross products) """
              
-    sel_ds =  dataset[:,3:]
+    sel_ds =  dataset[:,2:]
     length_col = sel_ds.shape[1]
     lenght_row = sel_ds.shape[0]
     prod_cols = np.zeros((lenght_row, 1))

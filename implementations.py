@@ -32,7 +32,6 @@ def least_squares_GD(y, tx, initial_w, max_iters, gamma):
         
     return loss, w
 
-
 def least_squares_SGD(y, tx, initial_w, batch_size, max_iters, gamma):
     """ The Stochastic Gradient Descent algorithm (SGD) 
         Args:
@@ -66,7 +65,6 @@ def least_squares_SGD(y, tx, initial_w, batch_size, max_iters, gamma):
             losses.append(loss)
     
     return loss, w
-
 
 def least_squares(y, tx):
     """ The Least Squares algorithm (LS) 
