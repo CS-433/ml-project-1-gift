@@ -13,7 +13,7 @@ This project is executed by the team GiFT with the following members:
 
 Girolamo Vurro: [@girolamovurro14](https://github.com/girolamovurro14)
 
-Francesca Venturi: @francescaventurigit
+Francesca Venturi: [@francescaventurigit](https://github.com/francescaventurigit)
 
 Tommaso Farnararo: @tommasofarnararo
 
