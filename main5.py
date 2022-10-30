@@ -2,13 +2,13 @@ import sys
 sys.path.append("../../ML_project1")
 
 from loading_data import *
-#from preprocessing import *
 from cleaning_dataset import *
 from feature_engineering import *
 from utilities_linear_regression import *
 from utilities_logistic_regression import *
-#from postprocessing import *
+from plots import *
 import matplotlib.pyplot as plt
+import numpy as np
 
 ##############################################################################
 
@@ -108,7 +108,7 @@ train_exp = []
 test_exp = []
 best_degrees = []
 degrees = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
-deg = 11
+deg = 25
 #%% lasts 8h
 for i in range(len(train_angle)):
     ids, y, tx = split_into_ids_y_tx(train_angle[i])
@@ -148,9 +148,7 @@ train_stand = []
 test_stand = []
 for i in range(len(train_prod)):
     curr_train, curr_mean, curr_std = standardize_train(train_prod[i])
-    curr_train[:,2] = 1
     curr_test = standardize_test(test_prod[i], curr_mean, curr_std)
-    curr_test[:,2] = 1
     train_stand.append(curr_train)
     test_stand.append(curr_test)    
 
@@ -159,6 +157,8 @@ ws = []
 lambdas = np.logspace(-10, 0, 30)
 k_fold = 10
 lamb = []
+train_errors = []
+test_errors = []
 
 for i in range(len(train_stand)):
     ids, y, tx = split_into_ids_y_tx(train_stand[i])
@@ -166,9 +166,12 @@ for i in range(len(train_stand)):
     lamb.append(l)
     w = ridge_regression(y, tx, l)[0]
     ws.append(w)
-    
-    # plot_train_test(rmse_tr, rmse_te, lambdas, degree=7)
-    
+    train_errors.append(rmse_tr)
+    test_errors.append(rmse_te)
+
+#%% PLOT LAMBDAS
+plot_lambdas(train_errors, test_errors, lambdas, deg)
+
 #%% COMPUTE CONTINOUS PREDICTIONS
 ys = generate_linear_prediction(test_stand, ws)
 
