@@ -11,7 +11,7 @@ The repository contains all the material usedo to face the EPFL Machine Learning
 # Team
 This project is executed by the team GiFT with the following members:
 
-Girolamo Vurro: @girolamovurro14
+Girolamo Vurro: [@girolamovurro14](https://github.com/girolamovurro14)
 
 Francesca Venturi: @francescaventurigit
 
