@@ -30,7 +30,7 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
         ws.append(w)
         losses.append(loss)
         
-    return loss, w
+    return w,loss
 
 def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     """ The Stochastic Gradient Descent algorithm (SGD) 
@@ -66,7 +66,7 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
             ws.append(w)
             losses.append(loss)
     
-    return loss, w
+    return w,loss
 
 def least_squares(y, tx):
     """ The Least Squares algorithm (LS) 
@@ -132,7 +132,7 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
     
-    return loss, w
+    return w,loss
    
 def logistic_regression(y, tx, initial_w, max_iters, gamma):
     """ Logistic Regression by Gradient Descent algorithm 
@@ -164,7 +164,7 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
     
-    return loss, w
+    return w,loss
 
 ##################################################################################
 def log_reg(y, tx, w):
@@ -272,26 +272,6 @@ def learning_by_gradient_descent(y, tx, w, gamma):
     
     return loss, w
 
-   
-   def calculate_hessian(y, tx, w):
-    """return the Hessian of the loss function.
-
-    Args:
-        y:  shape=(N, 1)
-        tx: shape=(N, D)
-        w:  shape=(D, 1) 
-
-    Returns:
-        a hessian matrix of shape=(D, D) 
-
-   
-    """
-    N = y.size
-    diagonal = np.ndarray.flatten(sigmoid(tx.dot(w))*(1-sigmoid(tx.dot(w))))
-    S = np.diag(diagonal)
-    hess = (1/N) * np.dot(np.dot(tx.T,S),tx)
-    
-    return hess
 
 def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
     """
