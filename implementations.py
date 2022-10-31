@@ -3,7 +3,7 @@ from utilities_linear_regression import *
 from utilities_logistic_regression import * 
 
 ############################# IMPLEMENTATIONS ################################
-def least_squares_GD(y, tx, initial_w, max_iters, gamma):
+def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     """ The Gradient Descent (GD) algorithm 
         Args:
             y: shape=(N, ) (N number of events)
@@ -32,7 +32,7 @@ def least_squares_GD(y, tx, initial_w, max_iters, gamma):
         
     return loss, w
 
-def least_squares_SGD(y, tx, initial_w, batch_size, max_iters, gamma):
+def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
     """ The Stochastic Gradient Descent algorithm (SGD) 
         Args:
             y: shape=(N, )
