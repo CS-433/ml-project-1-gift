@@ -154,6 +154,7 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     losses = []
 
     w = initial_w
+    loss = 0
     
     # start the logistic regression
     for iter in range(max_iters):
