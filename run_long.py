@@ -107,20 +107,20 @@ for i in range(len(train_skew)):
 train_exp = []
 test_exp = []
 best_degrees = []
-# degrees = np.array([7, 8, 9, 10, 11, 12, 13, 14])
-deg = 14
+degrees = np.array([7, 8, 9, 10, 11, 12, 13, 14])
+
 #%% the following for-loop lasts 10h approximately and chooses the degree 15
 ### for every sub-dataset
-# seed = 1
-# for i in range(len(train_angle)):
-#     deg = best_degree_dataset(train_angle[i], degrees, k_fold, lambdas, seed)[0]
-#     best_degrees.append(deg)
+seed = 1
+for i in range(len(train_angle)):
+    deg = best_degree_dataset(train_angle[i], degrees, k_fold, lambdas, seed)[0]
+    best_degrees.append(deg)
 
 #%%
 for i in range(len(train_angle)):
-    curr_exp_train = poly_expansion_blind(train_angle[i], deg)
+    curr_exp_train = poly_expansion_blind(train_angle[i], best_degrees[i])
     train_exp.append(curr_exp_train)
-    curr_exp_test = poly_expansion_blind(test_angle[i], deg)
+    curr_exp_test = poly_expansion_blind(test_angle[i], best_degrees[i])
     test_exp.append(curr_exp_test)
     
 #%% COUPLED CROSS-PRODUCTS
