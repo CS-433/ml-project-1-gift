@@ -6,7 +6,7 @@ The repository contains all the material usedo to face the EPFL Machine Learning
  - cleaning of the dataset (`cleaning_dataset.py`)
  - manipulation techniques on the features of the dataset (`feature_engineering.py`)
  - regression (`utilities_linear_regression.py`, `utilities_logistic_regression.py`, `implementations.py`)
- - final code to run, including the process that led to the final results (`run.py`)
+ - final code to run with the process that led to the final results (`run_long.py`). A way faster python code is also provided (`run.py`) and it includes the very same steps as the previous one, except for the cross-validation over the optimal degree for polynomial expansion, which takes hours. Clearly, the results of this procedure (performed in `run_long.py`) are plugged in the faster code, to lead to the same prediction, this the same accuracy.
 
 # Team
 This project is executed by the team GiFT with the following members:
