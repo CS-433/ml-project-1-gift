@@ -1,6 +1,6 @@
 import numpy as np
 from utilities_linear_regression import *
-from utilities_logistic_regression import * 
+ 
 
 ############################# IMPLEMENTATIONS ################################
 def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
@@ -103,70 +103,150 @@ def ridge_regression(y, tx, lambda_):
     return w, loss
 
 
-def logistic_regression(y, tx, initial_w, max_iters, gamma):
-    """ Logistic Regression by Gradient Descent algorithm 
-        Args:
-            y: shape=(N, )
-            tx: shape=(N, D)
-            initial_w: shape=(D, ). The initial guess for the model parameters
-            batch_size: a scalar denoting the number of data points in a 
-                        mini-batch used for computing the stochastic gradient
-            max_iters: total number of iterations of GD (scalar(int))
-            gamma: stepsize (scalar)
-        Returns:
-            loss: loss value (scalar) of the last iteration of GD
-            w: model parameters as numpy arrays of shape (D, ), the last
-                iteration of GD"""
-    
-    # init parameters
-    threshold = 0.0001
-    losses = []
+def logistic_regression(y, tx, w):
+    """return the loss, gradient of the loss, and hessian of the loss.
 
-    w = initial_w
-    
-    loss = 0
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1) 
 
-    # start the logistic regression
-    for iter in range(max_iters):
-        # get loss and update w.
-        loss, w = learning_by_gradient_descent(y, tx, w, gamma)
-        # converge criterion
-        losses.append(loss)
-        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
-            break
+    Returns:
+        loss: scalar number
+        gradient: shape=(D, 1) 
+        hessian: shape=(D, D)
+
+   
+    """
+    loss = calculate_loss(y, tx, w)
+    grad = calculate_gradient(y, tx, w)
+    hess = calculate_hessian(y, tx, w)
+    
+    return loss, grad, hess
+
+
+def reg_logistic_regression(y, tx, w, lambda_):
+    """return the loss and gradient.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1)
+        lambda_: scalar
+
+    Returns:
+        loss: scalar number
+        gradient: shape=(D, 1)
+
+    
+    """
+    pen_log_loss = calculate_loss(y,tx,w) + lambda_*np.linalg.norm(w)**2
+    grad = calculate_gradient(y,tx,w)
+    pen = (2*lambda_*w)
+    pen_grad = grad + pen
+    
+    return pen_log_loss, pen_grad
+
+def calculate_loss(y, tx, w):
+    """compute the cost by negative log likelihood.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1) 
+
+    Returns:
+        a non-negative loss
+
+    
+    """
+    assert y.shape[0] == tx.shape[0]
+    assert tx.shape[1] == w.shape[0]
+
+    txw = tx.dot(w)
+    log_loss = np.mean(np.log(1 + np.exp(txw)) - y*txw)
+    
+    return log_loss
+
+def calculate_gradient(y, tx, w):
+    """compute the gradient of loss.
+    
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1) 
+
+    Returns:
+        a vector of shape (D, 1)
+
+    
+    """
+    # ***************************************************
+    N = y.size
+    grad = (1/N) * np.dot(tx.T, sigmoid(tx.dot(w))-y)
+
+    return grad
+
+def learning_by_gradient_descent(y, tx, w, gamma):
+    """
+    Do one step of gradient descent using logistic regression. Return the loss and the updated w.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1) 
+        gamma: float
+
+    Returns:
+        loss: scalar number
+        w: shape=(D, 1) 
+
+   """
+    # ***************************************************
+    loss = calculate_loss(y, tx, w)
+    w = w - gamma*calculate_gradient(y, tx, w)
     
     return loss, w
+def calculate_hessian(y, tx, w):
+    """return the Hessian of the loss function.
 
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1) 
 
-def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
-    """ Penalized Logistic Regression by Gradient Descent algorithm 
-        Args:
-            y: shape=(N, )
-            tx: shape=(N, D)
-            lambda_: scalar(float) penalization parameter
-            initial_w: shape=(D, ). The initial guess for the model parameters
-            batch_size: a scalar denoting the number of data points in a 
-                        mini-batch used for computing the stochastic gradient
-            max_iters: total number of iterations of GD (scalar(int))
-            gamma: stepsize (scalar)
-        Returns:
-            loss: loss value (scalar) of the last iteration of GD
-            w: model parameters as numpy arrays of shape (D, ), the last
-                iteration of GD """
+    Returns:
+        a hessian matrix of shape=(D, D) 
+
+   
+    """
+    N = y.size
+    diagonal = np.ndarray.flatten(sigmoid(tx.dot(w))*(1-sigmoid(tx.dot(w))))
+    S = np.diag(diagonal)
+    hess = (1/N) * np.dot(np.dot(tx.T,S),tx)
     
-    threshold = 0.0001
-    losses = []
+    return hess
 
-    w = initial_w
-    loss = 0
-    
-    # start the logistic regression
-    for iter in range(max_iters):
-        # get loss and update w.
-        loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
-        # converge criterion
-        losses.append(loss)
-        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
-            break
+def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
+    """
+    Do one step of gradient descent, using the penalized logistic regression.
+    Return the loss and updated w.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        w:  shape=(D, 1)
+        gamma: scalar
+        lambda_: scalar
+
+    Returns:
+        loss: scalar number
+        w: shape=(D, 1)
+
+   
+    """
+    # ***************************************************
+    loss, grad = penalized_logistic_regression(y, tx, w, lambda_)
+    w = w - gamma*grad
     
     return loss, w
