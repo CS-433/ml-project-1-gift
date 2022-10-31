@@ -324,6 +324,63 @@ def poly_expansion_log(dataset, degrees, k_fold, lambdas, seed = 1):
         
     return ret, degree_selected
 
+def cross_validation_deg_tx_lin(y, x, k_indices, k, lambda_, degree):
+    """ Return the loss of ridge regression for a fold corresponding to k_indices 
+        The feature x gets expanded by a degree to build the regression matrix tx """
+    # get k'th subgroup in test, others in trai
+    k_fold = len(k_indices)
+    
+    y_test = y[k_indices[k]]
+    x_test = x[k_indices[k]]
+    tx_test = poly_expansion_blind(x_test, degree)
+    
+    ind_train = []
+    ind_train = np.append(ind_train, k_indices[np.arange(k_fold)!=k])
+    ind_train = np.array(ind_train)
+    ind_train = ind_train.astype(int)
+                 
+    y_train = y[ind_train]
+    x_train = x[ind_train]
+    tx_train = poly_expansion_blind(x_train, degree)
+    
+    # ridge regression
+    w_k = ridge_regression(y_train, tx_train, lambda_)[0]
+    
+    # calculate the loss for train and test data
+    loss_tr = np.sqrt(2*compute_mse(y_train, tx_train, w_k))
+    loss_te = np.sqrt(2*compute_mse(y_test, tx_test, w_k))
+    
+    return loss_tr, loss_te
+
+def cross_validation_demo_deg_tx_lin(y, tx, degree, k_fold, lambdas):
+    """ Cross validation over regularisation parameter lambda
+        The feature x gets expanded by a degree to build the regression matrix tx """
+    
+    seed = 12
+    
+    # split data in k fold
+    k_indices = build_k_indices(y, k_fold, seed)
+    
+    # define lists to store the loss of training data and test data
+    rmse_tr = []
+    rmse_te = []
+    
+    for l in lambdas:
+        loss_tr_sum = 0
+        loss_te_sum = 0
+        for k in range(k_fold):
+            loss_tr, loss_te = cross_validation_deg_tx_lin(y, tx, k_indices, k, l, degree)
+            loss_tr_sum += loss_tr
+            loss_te_sum += loss_te
+        rmse_tr = np.append(rmse_tr, loss_tr_sum/k_fold)
+        rmse_te = np.append(rmse_te, loss_te_sum/k_fold)
+    
+    best_ind = np.argmin(rmse_te)
+    best_lambda = lambdas[best_ind]
+    best_rmse = rmse_te[best_ind]
+    
+    return best_lambda, best_rmse
+
 def best_degree_dataset(dataset, degrees, k_fold, lambdas, seed = 1):
     """ Cross validation over degree to find the optimal polynomial expansion
         degree of the model matrix tx.
@@ -346,8 +403,9 @@ def best_degree_dataset(dataset, degrees, k_fold, lambdas, seed = 1):
     
     for deg in degrees:
         
-        best_lambdas.append(cross_validation_demo_deg_tx_lin(y,tx, deg, k_fold, lambdas)[0])
-        best_rmses.append(cross_validation_demo_deg_tx_lin(y,tx, deg, k_fold, lambdas)[1])
+        l, rmse = cross_validation_demo_deg_tx_lin(y,tx, deg, k_fold, lambdas)
+        best_lambdas.append(l)
+        best_rmses.append(rmse)
     
     best_ind = np.argmin(best_rmses)
     best_degree = degrees[best_ind]
