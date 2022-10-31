@@ -32,7 +32,7 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
         
     return loss, w
 
-def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
+def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     """ The Stochastic Gradient Descent algorithm (SGD) 
         Args:
             y: shape=(N, )
@@ -53,7 +53,7 @@ def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
 
     for n_iter in range(max_iters):
 
-        for y_batch, tx_batch in batch_iter(y, tx, batch_size=batch_size, num_batches=1):
+        for y_batch, tx_batch in batch_iter(y, tx, batch_size=8, num_batches=1):
             # compute a stochastic gradient and loss
             grad, _ = compute_stoch_gradient(y_batch, tx_batch, w)
             # update w through the stochastic gradient update
