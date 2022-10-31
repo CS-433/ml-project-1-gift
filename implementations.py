@@ -119,7 +119,7 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
                 iteration of GD"""
     
     # init parameters
-    threshold = 1e-8
+    threshold = 0.0001
     losses = []
 
     w = initial_w
@@ -154,7 +154,7 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
             w: model parameters as numpy arrays of shape (D, ), the last
                 iteration of GD """
     
-    threshold = 1e-3
+    threshold = 0.0001
     losses = []
 
     w = initial_w
