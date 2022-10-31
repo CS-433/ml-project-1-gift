@@ -21,11 +21,12 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     losses = [compute_loss(y,tx,initial_w)]
     w = initial_w
     for n_iter in range(max_iters):
-        # update w by gradient descent
-        w = w - gamma * grad
+     
         # compute loss, gradient
         grad, err = compute_gradient(y, tx, w)
         loss = 1/2 * np.mean(err**2)
+        # update w by gradient descent
+        w = w - gamma * grad
         
         # store w and loss
         ws.append(w)
