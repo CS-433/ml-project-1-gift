@@ -101,9 +101,73 @@ def ridge_regression(y, tx, lambda_):
     loss = compute_loss(y, tx, w)
     
     return w, loss
+   
+def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
+    """ Penalized Logistic Regression by Gradient Descent algorithm 
+        Args:
+            y: shape=(N, )
+            tx: shape=(N, D)
+            lambda_: scalar(float) penalization parameter
+            initial_w: shape=(D, ). The initial guess for the model parameters
+            batch_size: a scalar denoting the number of data points in a 
+                        mini-batch used for computing the stochastic gradient
+            max_iters: total number of iterations of GD (scalar(int))
+            gamma: stepsize (scalar)
+        Returns:
+            loss: loss value (scalar) of the last iteration of GD
+            w: model parameters as numpy arrays of shape (D, ), the last
+                iteration of GD """
+    
+    threshold = 1e-3
+    losses = []
 
+    w = initial_w
+    
+    # start the logistic regression
+    for iter in range(max_iters):
+        # get loss and update w.
+        loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+    
+    return loss, w
+   
+def logistic_regression(y, tx, initial_w, max_iters, gamma):
+    """ Logistic Regression by Gradient Descent algorithm 
+        Args:
+            y: shape=(N, )
+            tx: shape=(N, D)
+            initial_w: shape=(D, ). The initial guess for the model parameters
+            batch_size: a scalar denoting the number of data points in a 
+                        mini-batch used for computing the stochastic gradient
+            max_iters: total number of iterations of GD (scalar(int))
+            gamma: stepsize (scalar)
+        Returns:
+            loss: loss value (scalar) of the last iteration of GD
+            w: model parameters as numpy arrays of shape (D, ), the last
+                iteration of GD"""
+    
+    # init parameters
+    threshold = 1e-8
+    losses = []
 
-def logistic_regression(y, tx, w):
+    w = initial_w
+
+    # start the logistic regression
+    for iter in range(max_iters):
+        # get loss and update w.
+        loss, w = learning_by_gradient_descent(y, tx, w, gamma)
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+    
+    return loss, w
+
+##################################################################################
+def log_reg(y, tx, w):
     """return the loss, gradient of the loss, and hessian of the loss.
 
     Args:
@@ -125,7 +189,7 @@ def logistic_regression(y, tx, w):
     return loss, grad, hess
 
 
-def reg_logistic_regression(y, tx, w, lambda_):
+def reg_log_reg(y, tx, w, lambda_):
     """return the loss and gradient.
 
     Args:
@@ -207,7 +271,9 @@ def learning_by_gradient_descent(y, tx, w, gamma):
     w = w - gamma*calculate_gradient(y, tx, w)
     
     return loss, w
-def calculate_hessian(y, tx, w):
+
+   
+   def calculate_hessian(y, tx, w):
     """return the Hessian of the loss function.
 
     Args:
@@ -246,7 +312,12 @@ def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
    
     """
     # ***************************************************
-    loss, grad = penalized_logistic_regression(y, tx, w, lambda_)
+    loss, grad = reg_log_reg(y, tx, w, lambda_)
     w = w - gamma*grad
     
     return loss, w
+   
+   
+   
+   
+   
