@@ -21,7 +21,7 @@ Tommaso Farnararo: @tommasofarnararo
 # Project structure
 
 ## Presentation
-The challenge aims at studying and implementing manipulation techinques on the dataset, in order to perform datamining and, eventually, reliable predictions.
+The challenge aims at studying and implementing manipulation techinques on a copious dataset, in order to perform datamining and, eventually, reliable predictions. The dataset is simulated by the ATLAS experiment performed at CERN and presents the train and the test set for the decay signature of the Higgs Boson. These two datasets can be found at https://www.aicrowd.com/challenges/epfl-machine-learning-higgs and downloaded in the `Resources` section.
 
 ## Documentation
 An effective and reliable data analysis is not able to leave a theoretical study of the problem out of consideration. A preliminary and, in our case, rough research on the Higgs Boson Challenge turns out to be fundamental. 
